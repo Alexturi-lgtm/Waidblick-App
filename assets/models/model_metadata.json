@@ -1,0 +1,26 @@
+{
+  "classes": [
+    "bock",
+    "geis",
+    "jung"
+  ],
+  "input_size": [
+    3,
+    260,
+    260
+  ],
+  "input_mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "input_std": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "architecture": "efficientnet_b2",
+  "framework": "pytorch",
+  "version": "0.1.0",
+  "description": "Gams (Rupicapra rupicapra) Alters- und Geschlechtsklassifikator"
+}

@@ -1,0 +1,31 @@
+name: waidblick
+description: Gams-Altersbestimmung per KI
+publish_to: 'none'
+version: 1.0.1+2
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  image_picker: ^1.0.7
+  # tflite_flutter: ^0.10.4 # mobile only
+  # image: ^4.1.7 # mobile only
+  shared_preferences: ^2.2.2
+  uuid: ^4.3.3
+  intl: ^0.19.0
+  path_provider: ^2.1.2
+  geolocator: ^13.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/models/
