@@ -5,9 +5,9 @@ workflows:
     environment:
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: at.waidblick.app
+        bundle_identifier: de.waidblick.app
       vars:
-        BUNDLE_ID: "at.waidblick.app"
+        BUNDLE_ID: "de.waidblick.app"
         XCODE_WORKSPACE: "ios/Runner.xcworkspace"
         XCODE_SCHEME: "Runner"
       flutter: stable
