@@ -57,9 +57,11 @@ jobs:
           # Install provisioning profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "$PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
-          PP_UUID=$(grep -o '[0-9A-F]\{8\}-[0-9A-F]\{4\}-[0-9A-F]\{4\}-[0-9A-F]\{4\}-[0-9A-F]\{12\}' /tmp/profile.mobileprovision | head -1)
+          # UUID can be lowercase or uppercase - handle both
+          PP_UUID=$(grep -aEo '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}' /tmp/profile.mobileprovision | head -1)
           cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/${PP_UUID}.mobileprovision
           echo "Installed profile: ${PP_UUID}"
+          ls ~/Library/MobileDevice/Provisioning\ Profiles/
 
       - name: Setup App Store Connect API Key
         env:
