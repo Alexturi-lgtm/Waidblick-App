@@ -6,6 +6,7 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: de.waidblick.app
+        provisioning_profile_type: IOS_APP_STORE
       vars:
         BUNDLE_ID: "de.waidblick.app"
         XCODE_WORKSPACE: "ios/Runner.xcworkspace"
