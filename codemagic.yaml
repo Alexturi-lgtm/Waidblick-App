@@ -3,30 +3,40 @@ workflows:
     name: WAIDBLICK iOS TestFlight
     max_build_duration: 60
     instance_type: mac_mini_m2
-    integrations:
-      app_store_connect: Codemagic2
     environment:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: de.waidblick.app
+      vars:
+        APP_STORE_CONNECT_ISSUER_ID: "ac65144c-f557-430c-b50d-045d814224f0"
+        APP_STORE_CONNECT_KEY_IDENTIFIER: "GVYK3VM779"
       flutter: stable
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Set up code signing settings on Xcode project
+      - name: Set up code signing
         script: xcode-project use-profiles
-      - name: Flutter pub get
+      - name: Get Flutter packages
         script: flutter pub get
-      - name: Flutter build ipa
+      - name: Build IPA
+        script: flutter build ipa --release --no-codesign
+      - name: Export IPA
         script: |
-          flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist
+          xcode-project build-ipa \
+            --workspace ios/Runner.xcworkspace \
+            --scheme Runner
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-      - flutter_drive.log
     publishing:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
-# Fri Apr  3 23:06:00 CEST 2026
+        beta_groups:
+          - Beta Testers
+      email:
+        recipients:
+          - Alex.turi@hotmail.de
+        notify:
+          success: true
+          failure: true
