@@ -5,8 +5,8 @@ import 'package:http/http.dart' as http;
 import '../models/age_estimate.dart';
 
 class VisionApiService {
-  // Backend URL — konfigurierbar
-  static String backendUrl = '';
+  // Backend URL — ngrok für Beta/PWA-Testing
+  static String backendUrl = 'https://crinal-pervertible-colette.ngrok-free.dev';
 
   static Future<AgeEstimate> analyze({
     required Uint8List imageBytes,

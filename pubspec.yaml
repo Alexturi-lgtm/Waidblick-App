@@ -1,7 +1,7 @@
 name: waidblick
-description: Gams-Altersbestimmung per KI
+description: KI-gestützte Wildtier-Altersbestimmung für Jäger
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.0.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.2.0
+  supabase_flutter: ^2.8.4
   image_picker: ^1.0.7
   # tflite_flutter: ^0.10.4 # mobile only
   # image: ^4.1.7 # mobile only
