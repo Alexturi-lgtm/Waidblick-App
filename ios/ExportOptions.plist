@@ -12,10 +12,12 @@
     <true/>
     <key>compileBitcode</key>
     <false/>
+    <key>signingStyle</key>
+    <string>manual</string>
     <key>provisioningProfiles</key>
     <dict>
         <key>de.waidblick.app</key>
-        <string>de.waidblick.app AppStore</string>
+        <string>Waidblick AppStore</string>
     </dict>
 </dict>
 </plist>
