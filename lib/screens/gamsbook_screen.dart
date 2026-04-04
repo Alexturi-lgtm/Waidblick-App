@@ -121,7 +121,7 @@ class _GamsbookScreenState extends State<GamsbookScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'WAIDBUCH',
+          'LOOKBOOK',
           style: TextStyle(
             color: WaidblickColors.primary,
             fontSize: 20,

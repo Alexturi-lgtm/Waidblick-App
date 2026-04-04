@@ -43,6 +43,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   HuntingRegion _huntingRegion = HuntingRegion.other;
   Position? _currentPosition;
   AgeEstimate? _latestVisionEstimate; // Letzte Vision-API Schätzung
+  String _wildartHint = 'auto'; // 'auto', 'gams', 'rehwild', 'rotwild'
 
   @override
   void initState() {
@@ -135,7 +136,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         // Vision API aufrufen (echte KI-Analyse)
         final visionEstimate = await VisionApiService.analyze(
           imageBytes: imageBytes,
-          wildartHint: 'auto',
+          wildartHint: _wildartHint,
           region: _huntingRegion.name,
           photoCount: _photos.length + 1,
           previousEstimate: _latestVisionEstimate,
@@ -425,7 +426,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('"${individual.name}" ins GamsBook gespeichert!'),
+          content: Text('"${individual.name}" ins Lookbook gespeichert!'),
           backgroundColor: Colors.green,
         ),
       );
@@ -438,14 +439,38 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final scoring = estimate.scoring!;
 
     // Merkmal-Definitionen: Key → (Icon, Anzeigename, Gewicht)
-    const merkmale = [
-      ('hakenkruemmung', Icons.rotate_right_rounded, 'Hakenkrümmung', '25%'),
-      ('jahresringe', Icons.settings_outlined, 'Jahresringe', '20%'),
-      ('gesichtszuegel', Icons.face_outlined, 'Gesichtszügel', '20%'),
-      ('fellfarbe', Icons.palette_outlined, 'Fellfarbe', '15%'),
-      ('ruecken_flanken', Icons.straighten_outlined, 'Rücken/Flanken', '10%'),
-      ('augen', Icons.visibility_outlined, 'Augen', '10%'),
-    ];
+    // Wildart-spezifische Scoring-Keys passend zum Backend
+    final wildart = estimate.wildart;
+    final List<(String, IconData, String, String)> merkmale;
+    if (wildart == 'rehwild') {
+      merkmale = [
+        ('koerperbau', Icons.straighten_outlined, 'Körperbau', '25%'),
+        ('traeger_hals', Icons.height_rounded, 'Träger/Hals', '20%'),
+        ('kopf', Icons.face_outlined, 'Kopf', '20%'),
+        ('decke_fell', Icons.palette_outlined, 'Decke/Fell', '15%'),
+        ('spiegel_schnuerze', Icons.filter_center_focus_outlined, 'Spiegel/Schnürze', '10%'),
+        ('gehoern', Icons.park_outlined, 'Gehörn', '10%'),
+      ];
+    } else if (wildart == 'rotwild') {
+      merkmale = [
+        ('koerperprofil', Icons.straighten_outlined, 'Körperprofil', '25%'),
+        ('haupt_kopf', Icons.face_outlined, 'Haupt/Kopf', '20%'),
+        ('wamme', Icons.linear_scale_outlined, 'Wamme', '20%'),
+        ('ruecken_widerrist', Icons.show_chart_outlined, 'Rücken/Widerrist', '15%'),
+        ('traeger', Icons.height_rounded, 'Träger', '10%'),
+        ('maehne_fell', Icons.texture_outlined, 'Mähne/Fell', '10%'),
+      ];
+    } else {
+      // Gams (default) — Backend-Keys korrekt
+      merkmale = [
+        ('windfang', Icons.air_rounded, 'Windfang', '25%'),
+        ('gesichtszuegel', Icons.face_outlined, 'Gesichtszügel', '20%'),
+        ('ruecken_koerper', Icons.straighten_outlined, 'Rücken/Körper', '20%'),
+        ('brustkern', Icons.compare_arrows_rounded, 'Brustkern', '15%'),
+        ('augenbogen', Icons.visibility_outlined, 'Augenbogen', '10%'),
+        ('hochlaeufigkeit', Icons.height_rounded, 'Hochläufigkeit', '10%'),
+      ];
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -777,6 +802,51 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const SizedBox(height: 16),
+          // Tierauswahl
+          Container(
+            decoration: BoxDecoration(
+              color: WaidblickColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: WaidblickColors.border),
+            ),
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Wildart',
+                  style: TextStyle(
+                    color: WaidblickColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'auto', label: Text('Auto'), icon: Icon(Icons.auto_fix_high, size: 16)),
+                      ButtonSegment(value: 'gams', label: Text('Gämse'), icon: Icon(Icons.terrain, size: 16)),
+                      ButtonSegment(value: 'rehwild', label: Text('Reh'), icon: Icon(Icons.forest, size: 16)),
+                      ButtonSegment(value: 'rotwild', label: Text('Rotwild'), icon: Icon(Icons.park, size: 16)),
+                    ],
+                    selected: {_wildartHint},
+                    onSelectionChanged: (v) => setState(() => _wildartHint = v.first),
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.resolveWith<Color>(
+                        (states) => states.contains(WidgetState.selected)
+                            ? WaidblickColors.primary.withOpacity(0.2)
+                            : Colors.transparent,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
           // Premium Upload-CTA
           Container(
@@ -1262,7 +1332,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             icon: const Icon(Icons.bookmark_add,
                 color: WaidblickColors.primary),
             label: const Text(
-              'Als Gams speichern',
+              'Im Lookbook speichern',
               style: TextStyle(color: WaidblickColors.primary),
             ),
             style: OutlinedButton.styleFrom(

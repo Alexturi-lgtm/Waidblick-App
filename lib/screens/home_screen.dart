@@ -47,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.menu_book_outlined),
             selectedIcon: Icon(Icons.menu_book),
-            label: 'GamsBook',
+            label: 'Lookbook',
           ),
           NavigationDestination(
             icon: Icon(Icons.info_outline),

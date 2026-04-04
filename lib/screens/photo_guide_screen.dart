@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 
 /// Foto-Anleitung Screen — erklärt wie man optimale Fotos für die Analyse macht.
-class PhotoGuideScreen extends StatelessWidget {
+class PhotoGuideScreen extends StatefulWidget {
   const PhotoGuideScreen({super.key});
+
+  @override
+  State<PhotoGuideScreen> createState() => _PhotoGuideScreenState();
+}
+
+class _PhotoGuideScreenState extends State<PhotoGuideScreen> {
+  String _selectedWildart = 'gams'; // 'gams', 'reh', 'hirsch'
 
   @override
   Widget build(BuildContext context) {
@@ -110,6 +117,19 @@ class PhotoGuideScreen extends StatelessWidget {
             color: Colors.purple,
           ),
           const SizedBox(height: 8),
+          // Wildart-Switcher
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'gams', label: Text('Gämse')),
+              ButtonSegment(value: 'reh', label: Text('Reh')),
+              ButtonSegment(value: 'hirsch', label: Text('Hirsch')),
+            ],
+            selected: {_selectedWildart},
+            onSelectionChanged: (v) => setState(() => _selectedWildart = v.first),
+          ),
+          const SizedBox(height: 12),
+          _WildartPerspectiveGrid(wildart: _selectedWildart),
+          const SizedBox(height: 12),
           _PerspectiveCard(),
           const SizedBox(height: 20),
 
@@ -186,7 +206,7 @@ class PhotoGuideScreen extends StatelessWidget {
           // Footer
           Center(
             child: Text(
-              'GamsScope • Foto-Tipps für präzise Analyse',
+              'WAIDBLICK • Foto-Tipps für präzise Analyse',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey.shade500,
                     fontStyle: FontStyle.italic,
@@ -438,6 +458,86 @@ class _SizeExample extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Perspektiv-Bilder-Grid mit echten Illustrationen
+class _WildartPerspectiveGrid extends StatelessWidget {
+  final String wildart; // 'gams', 'reh', 'hirsch'
+
+  const _WildartPerspectiveGrid({required this.wildart});
+
+  static const Map<String, String> _labels = {
+    'vorn': 'Von vorne',
+    'seite': 'Seitenansicht',
+    'hinten': 'Von hinten',
+    '45grad': 'Halbprofil',
+  };
+
+  static const Map<String, double> _scores = {
+    'seite': 1.0,
+    '45grad': 0.75,
+    'vorn': 0.5,
+    'hinten': 0.35,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final perspectives = ['seite', '45grad', 'vorn', 'hinten'];
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 8,
+      mainAxisSpacing: 8,
+      childAspectRatio: 1.1,
+      children: perspectives.map((persp) {
+        final score = _scores[persp] ?? 0.5;
+        final color = score >= 0.9 ? Colors.green
+            : score >= 0.7 ? Colors.lightGreen
+            : score >= 0.5 ? Colors.orange
+            : Colors.red;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/images/guide/${wildart}_${persp}.jpg',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.grey.shade200,
+                  child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                  color: Colors.black.withOpacity(0.55),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _labels[persp] ?? persp,
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      Text(
+                        '${(score * 100).round()}%',
+                        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

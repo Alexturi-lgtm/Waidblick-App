@@ -216,9 +216,8 @@ class AgeEstimate {
   /// True wenn Konfidenz zu niedrig für verlässliche Aussage
   bool get isUncertain => confidence < 0.35 && photoCount > 0;
 
-  /// True wenn Tier sehr wahrscheinlich kein Schalenwild
-  // TODO: aktivieren wenn TFLite-Modell erkennt ob Schalenwild im Bild
-  bool get isNotGams => false;
+  /// True wenn Tier kein Wildtier (kein_wild vom Backend)
+  bool get isNotGams => wildart == 'kein_wild';
 
   /// Lesbare Konfidenz-Anzeige, z.B. "87% sicher"
   String get confidenceLabel {

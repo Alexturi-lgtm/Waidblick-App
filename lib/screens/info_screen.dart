@@ -81,12 +81,12 @@ class InfoScreen extends StatelessWidget {
                   _StepItem(
                     step: '4',
                     text:
-                        'Mit "Als Gams speichern" die Gams ins GamsBook eintragen.',
+                        'Mit "Im Lookbook speichern" die Analyse ins Lookbook eintragen.',
                   ),
                   _StepItem(
                     step: '5',
                     text:
-                        'Im GamsBook können Gams-Profile verwaltet und mit '
+                        'Im Lookbook können Analysen verwaltet und mit '
                         'neuen Sichtungen angereichert werden.',
                   ),
                   const SizedBox(height: 8),
