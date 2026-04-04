@@ -73,6 +73,7 @@ jobs:
       - name: Build iOS IPA
         run: |
           flutter build ipa --release \
+            --build-number=$GITHUB_RUN_NUMBER \
             --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload to TestFlight
