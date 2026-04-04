@@ -8,6 +8,7 @@ import '../models/sighting.dart';
 import '../services/bayesian_engine.dart';
 import '../services/database_service.dart';
 import '../services/ml_service.dart';
+import '../models/gams_individual.dart';
 import '../widgets/age_class_badge.dart';
 import '../widgets/probability_bars.dart';
 
@@ -80,6 +81,72 @@ class _GamsDetailScreenState extends State<GamsDetailScreen> {
       }
     } finally {
       if (mounted) setState(() => _isAnalyzing = false);
+    }
+  }
+
+  Future<void> _toggleErlegt(GamsIndividual individual) async {
+    if (individual.erlegtAt != null) {
+      // Erlegung rücksetzen
+      final updated = individual.copyWith(clearErlegtAt: true);
+      await DatabaseService.instance.updateIndividual(updated);
+      if (mounted) setState(() {});
+    } else {
+      // Erlegung eintragen
+      DateTime erlegtDate = DateTime.now();
+      final confirmed = await showDatePicker(
+        context: context,
+        initialDate: erlegtDate,
+        firstDate: DateTime(2000),
+        lastDate: DateTime.now(),
+        helpText: 'Erlegungsdatum',
+      );
+      if (confirmed != null) {
+        erlegtDate = confirmed;
+        final updated = individual.copyWith(erlegtAt: erlegtDate);
+        await DatabaseService.instance.updateIndividual(updated);
+        if (mounted) setState(() {});
+      }
+    }
+  }
+
+  Future<void> _editTatsaechlichesAlter(GamsIndividual individual) async {
+    int? alter = individual.tatsaechlichesAlter;
+    final controller =
+        TextEditingController(text: alter != null ? '$alter' : '');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tatsächliches Alter'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Alter in Jahren',
+            hintText: 'z.B. 7',
+            suffixText: 'Jahre',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Speichern'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final parsed = int.tryParse(controller.text.trim());
+      final updated = parsed != null
+          ? individual.copyWith(tatsaechlichesAlter: parsed)
+          : individual.copyWith(clearTatsaechlichesAlter: true);
+      await DatabaseService.instance.updateIndividual(updated);
+      if (mounted) setState(() {});
     }
   }
 
@@ -178,8 +245,85 @@ class _GamsDetailScreenState extends State<GamsDetailScreen> {
                     '${est.photoCount} Foto(s) analysiert',
                     style: theme.textTheme.bodySmall,
                   ),
+                  if (individual.tatsaechlichesAlter != null) ...[  
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.verified_user_outlined,
+                            size: 14, color: Colors.green),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Tatsächliches Alter: ${individual.tatsaechlichesAlter} Jahre',
+                          style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.green,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Erlegt & Tatsächliches Alter
+          Card(
+            child: Column(
+              children: [
+                // Erlegt-Toggle
+                ListTile(
+                  leading: Icon(
+                    individual.erlegtAt != null
+                        ? Icons.check_circle
+                        : Icons.circle_outlined,
+                    color: individual.erlegtAt != null
+                        ? Colors.red.shade700
+                        : Colors.grey,
+                  ),
+                  title: Text(
+                    individual.erlegtAt != null
+                        ? 'Erlegt ✓'
+                        : 'Erlegt eintragen',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: individual.erlegtAt != null
+                          ? Colors.red.shade700
+                          : null,
+                    ),
+                  ),
+                  subtitle: individual.erlegtAt != null
+                      ? Text(
+                          'Am ${individual.erlegtAt!.day.toString().padLeft(2, '0')}.'
+                          '${individual.erlegtAt!.month.toString().padLeft(2, '0')}.'
+                          '${individual.erlegtAt!.year}',
+                        )
+                      : null,
+                  trailing: OutlinedButton(
+                    onPressed: () => _toggleErlegt(individual),
+                    child: Text(individual.erlegtAt != null
+                        ? 'Rücksetzen'
+                        : 'Eintragen'),
+                  ),
+                ),
+                const Divider(height: 1),
+                // Tatsächliches Alter
+                ListTile(
+                  leading: const Icon(Icons.cake_outlined),
+                  title: const Text('Tatsächliches Alter',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(
+                    individual.tatsaechlichesAlter != null
+                        ? '${individual.tatsaechlichesAlter} Jahre'
+                        : 'Nicht eingetragen',
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () => _editTatsaechlichesAlter(individual),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),

@@ -1,3 +1,5 @@
+import 'dart:io' show File;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -19,9 +21,15 @@ class GamsbookScreen extends StatefulWidget {
 class _GamsbookScreenState extends State<GamsbookScreen> {
   final _uuid = const Uuid();
   final _dateFormat = DateFormat('dd.MM.yyyy');
+  String _filterWildart = 'alle';
 
-  List<GamsIndividual> get _individuals =>
+  List<GamsIndividual> get _allIndividuals =>
       List.from(DatabaseService.instance.individuals);
+
+  List<GamsIndividual> get _individuals {
+    if (_filterWildart == 'alle') return _allIndividuals;
+    return _allIndividuals.where((i) => i.wildart == _filterWildart).toList();
+  }
 
   Future<void> _refresh() async {
     await DatabaseService.instance.load();
@@ -136,35 +144,76 @@ class _GamsbookScreenState extends State<GamsbookScreen> {
           ),
         ],
       ),
-      body: individuals.isEmpty
-          ? _buildEmptyState()
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: individuals.length,
-              itemBuilder: (context, index) {
-                final ind = individuals[index];
-                return _GamsCard(
-                  individual: ind,
-                  dateFormat: _dateFormat,
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => GamsDetailScreen(individualId: ind.id),
-                      ),
-                    );
-                    if (mounted) setState(() {});
-                  },
-                  onDelete: () => _deleteGams(ind),
-                );
-              },
+      body: Column(
+        children: [
+          // Filter-Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                _filterChip('alle', 'Alle'),
+                const SizedBox(width: 8),
+                _filterChip('gams', 'Gämse'),
+                const SizedBox(width: 8),
+                _filterChip('rehwild', 'Reh'),
+                const SizedBox(width: 8),
+                _filterChip('rotwild', 'Rotwild'),
+              ],
             ),
+          ),
+          Expanded(
+            child: individuals.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: individuals.length,
+                    itemBuilder: (context, index) {
+                      final ind = individuals[index];
+                      return _GamsCard(
+                        individual: ind,
+                        dateFormat: _dateFormat,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  GamsDetailScreen(individualId: ind.id),
+                            ),
+                          );
+                          if (mounted) setState(() {});
+                        },
+                        onDelete: () => _deleteGams(ind),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addNewGams,
         tooltip: 'Neue Gams',
         backgroundColor: WaidblickColors.primary,
         foregroundColor: Colors.black,
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _filterChip(String value, String label) {
+    final selected = _filterWildart == value;
+    return FilterChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => setState(() => _filterWildart = value),
+      selectedColor: WaidblickColors.primary.withOpacity(0.2),
+      checkmarkColor: WaidblickColors.primary,
+      labelStyle: TextStyle(
+        color: selected ? WaidblickColors.primary : WaidblickColors.textSecondary,
+        fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
+      ),
+      side: BorderSide(
+        color: selected ? WaidblickColors.primary : WaidblickColors.border,
       ),
     );
   }
@@ -205,6 +254,34 @@ class _GamsCard extends StatelessWidget {
     required this.onDelete,
   });
 
+  Widget _buildLeading(GamsIndividual ind) {
+    final photoPath = ind.firstPhotoPath;
+    if (photoPath != null && !kIsWeb) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(
+          File(photoPath),
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _iconAvatar(ind),
+        ),
+      );
+    }
+    return _iconAvatar(ind);
+  }
+
+  Widget _iconAvatar(GamsIndividual ind) {
+    final est = ind.currentEstimate;
+    return CircleAvatar(
+      backgroundColor: WaidblickColors.primary.withOpacity(0.15),
+      child: Icon(
+        AgeClassBadge.iconFor(est.dominantAgeClass),
+        color: WaidblickColors.primary,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final est = individual.currentEstimate;
@@ -234,13 +311,7 @@ class _GamsCard extends StatelessWidget {
         child: ListTile(
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          leading: CircleAvatar(
-            backgroundColor: WaidblickColors.primary.withOpacity(0.15),
-            child: Icon(
-              AgeClassBadge.iconFor(est.dominantAgeClass),
-              color: WaidblickColors.primary,
-            ),
-          ),
+          leading: _buildLeading(individual),
           title: Row(
             children: [
               Expanded(

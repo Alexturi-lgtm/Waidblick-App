@@ -13,22 +13,28 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   HuntingRegion _selectedRegion = HuntingRegion.other;
   bool _loading = true;
+  bool _learningEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    _loadRegion();
+    _loadSettings();
   }
 
-  Future<void> _loadRegion() async {
+  Future<void> _loadSettings() async {
     final region = await SettingsService.getRegion();
+    final learning = await SettingsService.getLearningEnabled();
     if (mounted) {
       setState(() {
         _selectedRegion = region;
+        _learningEnabled = learning;
         _loading = false;
       });
     }
   }
+
+  // keep old name for compatibility
+  Future<void> _loadRegion() => _loadSettings();
 
   Future<void> _onRegionChanged(HuntingRegion? newRegion) async {
     if (newRegion == null) return;
@@ -140,6 +146,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _FreigabeTable(regulation: regulation),
                       ],
                     ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Learning-Toggle
+                Card(
+                  child: SwitchListTile(
+                    title: const Text(
+                      '🧠 Fotos zum Learning bereitstellen',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: const Text(
+                      'Anonymä Fotos helfen das KI-Modell zu verbessern.',
+                    ),
+                    value: _learningEnabled,
+                    onChanged: (v) async {
+                      await SettingsService.setLearningEnabled(v);
+                      if (mounted) setState(() => _learningEnabled = v);
+                    },
+                    activeColor: const Color(0xFFFFB300),
                   ),
                 ),
 

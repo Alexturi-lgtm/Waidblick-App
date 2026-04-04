@@ -10,6 +10,11 @@ class GamsIndividual {
   final DateTime lastSeen;
   final AgeEstimate currentEstimate;
   final List<Sighting> sightings;
+  // Sprint 2 Erweiterungen
+  final String wildart; // 'gams', 'rehwild', 'rotwild'
+  final DateTime? capturedDate; // Aufnahmedatum
+  final DateTime? erlegtAt; // Erlegungsdatum
+  final int? tatsaechlichesAlter; // Tatsächliches Alter in Jahren
 
   const GamsIndividual({
     required this.id,
@@ -19,6 +24,10 @@ class GamsIndividual {
     required this.lastSeen,
     required this.currentEstimate,
     required this.sightings,
+    this.wildart = 'gams',
+    this.capturedDate,
+    this.erlegtAt,
+    this.tatsaechlichesAlter,
   });
 
   /// Menschenlesbare Beschreibung der aktuellen Altersschätzung
@@ -28,6 +37,14 @@ class GamsIndividual {
     return '$label ($confidence)';
   }
 
+  /// Pfad zum ersten Foto (für Thumbnail)
+  String? get firstPhotoPath {
+    for (final s in sightings) {
+      if (s.photos.isNotEmpty) return s.photos.first;
+    }
+    return null;
+  }
+
   /// Gibt eine Kopie mit geänderten Feldern zurück
   GamsIndividual copyWith({
     String? name,
@@ -35,6 +52,12 @@ class GamsIndividual {
     DateTime? lastSeen,
     AgeEstimate? currentEstimate,
     List<Sighting>? sightings,
+    String? wildart,
+    DateTime? capturedDate,
+    DateTime? erlegtAt,
+    bool clearErlegtAt = false,
+    int? tatsaechlichesAlter,
+    bool clearTatsaechlichesAlter = false,
   }) {
     return GamsIndividual(
       id: id,
@@ -44,6 +67,12 @@ class GamsIndividual {
       lastSeen: lastSeen ?? this.lastSeen,
       currentEstimate: currentEstimate ?? this.currentEstimate,
       sightings: sightings ?? this.sightings,
+      wildart: wildart ?? this.wildart,
+      capturedDate: capturedDate ?? this.capturedDate,
+      erlegtAt: clearErlegtAt ? null : (erlegtAt ?? this.erlegtAt),
+      tatsaechlichesAlter: clearTatsaechlichesAlter
+          ? null
+          : (tatsaechlichesAlter ?? this.tatsaechlichesAlter),
     );
   }
 
@@ -55,6 +84,10 @@ class GamsIndividual {
         'lastSeen': lastSeen.toIso8601String(),
         'currentEstimate': currentEstimate.toJson(),
         'sightings': sightings.map((s) => s.toJson()).toList(),
+        'wildart': wildart,
+        if (capturedDate != null) 'capturedDate': capturedDate!.toIso8601String(),
+        if (erlegtAt != null) 'erlegtAt': erlegtAt!.toIso8601String(),
+        if (tatsaechlichesAlter != null) 'tatsaechlichesAlter': tatsaechlichesAlter,
       };
 
   factory GamsIndividual.fromJson(Map<String, dynamic> json) => GamsIndividual(
@@ -68,5 +101,13 @@ class GamsIndividual {
         sightings: (json['sightings'] as List)
             .map((s) => Sighting.fromJson(s as Map<String, dynamic>))
             .toList(),
+        wildart: (json['wildart'] as String?) ?? 'gams',
+        capturedDate: json['capturedDate'] != null
+            ? DateTime.parse(json['capturedDate'] as String)
+            : null,
+        erlegtAt: json['erlegtAt'] != null
+            ? DateTime.parse(json['erlegtAt'] as String)
+            : null,
+        tatsaechlichesAlter: json['tatsaechlichesAlter'] as int?,
       );
 }

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -44,6 +45,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   Position? _currentPosition;
   AgeEstimate? _latestVisionEstimate; // Letzte Vision-API Schätzung
   String _wildartHint = 'auto'; // 'auto', 'gams', 'rehwild', 'rotwild'
+  int _multiPhotoCount = 0; // Anzahl ausgewählter Fotos
+
+  // Zufallsnamen-Liste
+  static const _gamsNamen = [
+    'Brunft', 'Luise', 'Hans', 'Kleo', 'Berta', 'Franz', 'Alma', 'Kurt',
+    'Heidi', 'Anton', 'Rosa', 'Sepp', 'Gretl', 'Maxl', 'Toni', 'Liesl',
+    'Wastl', 'Zenzi', 'Moidl', 'Hias', 'Vroni', 'Rupert', 'Edeltraud', 'Karl',
+    'Waldi', 'Blitz', 'Silber', 'Grau', 'Fleck', 'Stolz', 'Bergfried', 'Adler',
+    'Gipfl', 'Almrausch', 'Wetterhorn', 'Fels', 'Sturm', 'Echo', 'Nebel', 'Schnee',
+  ];
+
+  String _randomGamsName() {
+    return _gamsNamen[Random().nextInt(_gamsNamen.length)];
+  }
 
   @override
   void initState() {
@@ -67,6 +82,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     });
   }
 
+  /// Mehrere Fotos aus der Galerie auswählen
+  Future<void> _pickMultiplePhotos() async {
+    final List<XFile> pickedList = await _picker.pickMultiImage(
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+    if (pickedList.isEmpty) return;
+    setState(() => _multiPhotoCount = pickedList.length);
+    for (final file in pickedList) {
+      await _analyzeXFile(file);
+    }
+  }
+
   Future<void> _pickPhoto(ImageSource source) async {
     final XFile? picked = await _picker.pickImage(
       source: source,
@@ -75,9 +104,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       imageQuality: 85,
     );
     if (picked == null) return;
+    setState(() => _multiPhotoCount = 0);
+    await _analyzeXFile(picked);
+  }
 
+  Future<void> _analyzeXFile(XFile picked) async {
     final imageBytes = await picked.readAsBytes();
-    setState(() => _isAnalyzing = true);
+    if (mounted) setState(() => _isAnalyzing = true);
 
     try {
       // ── Foto-Qualitäts-Check ──────────────────────────────────────────
@@ -161,7 +194,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         }
       }
 
-      setState(() {
+      if (mounted) setState(() {
         _photos.add(imageBytes);
         _photoPaths.add(picked.path);
         _photoQualities.add(quality);
@@ -330,10 +363,18 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Galerie'),
+              title: const Text('Galerie (1 Foto)'),
               onTap: () {
                 Navigator.pop(ctx);
                 _pickPhoto(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Mehrere Fotos auswählen'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickMultiplePhotos();
               },
             ),
           ],
@@ -346,20 +387,41 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final estimate = _engine.current;
     String name = '';
     String revier = '';
+    DateTime capturedDate = DateTime.now();
+    final nameController = TextEditingController();
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Gams speichern'),
-        content: Column(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setS) => AlertDialog(
+        title: const Text('Wildtier speichern'),
+        content: SingleChildScrollView(child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              decoration: const InputDecoration(
-                labelText: 'Name (optional)',
-                hintText: 'z.B. "Braunl" oder "Unbekannte Gams 1"',
-              ),
-              onChanged: (v) => name = v,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Name (optional)',
+                      hintText: 'z.B. "Braunl" oder "Unbekanntes Tier 1"',
+                    ),
+                    onChanged: (v) => name = v,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Zufallsname',
+                  icon: const Text('🎲', style: TextStyle(fontSize: 20)),
+                  onPressed: () {
+                    final n = _randomGamsName();
+                    nameController.text = n;
+                    name = n;
+                    setS(() {});
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             TextField(
@@ -368,6 +430,32 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 hintText: 'z.B. "Karwendel Süd"',
               ),
               onChanged: (v) => revier = v,
+            ),
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: ctx2,
+                  initialDate: capturedDate,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime.now(),
+                );
+                if (picked != null) setS(() => capturedDate = picked);
+              },
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Aufnahmedatum',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today, size: 16),
+                    const SizedBox(width: 8),
+                    Text('${capturedDate.day.toString().padLeft(2, '0')}.${capturedDate.month.toString().padLeft(2, '0')}.${capturedDate.year}'),
+                  ],
+                ),
+              ),
             ),
             if (_currentPosition != null) ...[
               const SizedBox(height: 8),
@@ -384,7 +472,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               ),
             ],
           ],
-        ),
+        )),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -395,6 +483,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             child: const Text('Speichern'),
           ),
         ],
+      ),
       ),
     );
 
@@ -434,6 +523,52 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     }
   }
 
+  /// Wildart-Auswahl Button
+  Widget _wildartBtn(String value, IconData icon, String label) {
+    final isSelected = _wildartHint == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _wildartHint = value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? WaidblickColors.primary.withOpacity(0.18)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? WaidblickColors.primary : WaidblickColors.border,
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 16,
+                  color: isSelected
+                      ? WaidblickColors.primary
+                      : WaidblickColors.textSecondary),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight:
+                      isSelected ? FontWeight.w700 : FontWeight.normal,
+                  color: isSelected
+                      ? WaidblickColors.primary
+                      : WaidblickColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Scoring-Matrix Card: zeigt die 6 Alters-Merkmale mit 1–5 Pkt Bewertung
   Widget _buildScoringCard(AgeEstimate estimate) {
     final scoring = estimate.scoring!;
@@ -461,13 +596,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         ('maehne_fell', Icons.texture_outlined, 'Mähne/Fell', '10%'),
       ];
     } else {
-      // Gams (default) — Backend-Keys korrekt
+      // Gams (default) — exakte Backend-Keys
       merkmale = [
         ('windfang', Icons.air_rounded, 'Windfang', '25%'),
         ('gesichtszuegel', Icons.face_outlined, 'Gesichtszügel', '20%'),
-        ('ruecken_koerper', Icons.straighten_outlined, 'Rücken/Körper', '20%'),
-        ('brustkern', Icons.compare_arrows_rounded, 'Brustkern', '15%'),
-        ('augenbogen', Icons.visibility_outlined, 'Augenbogen', '10%'),
+        ('ruecken_flanken', Icons.straighten_outlined, 'Rücken/Flanken', '20%'),
+        ('schrank', Icons.compare_arrows_rounded, 'Schrank', '15%'),
+        ('augenbogen', Icons.remove_red_eye_outlined, 'Augenbogen', '10%'),
         ('hochlaeufigkeit', Icons.height_rounded, 'Hochläufigkeit', '10%'),
       ];
     }
@@ -824,25 +959,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(value: 'auto', label: Text('Auto'), icon: Icon(Icons.auto_fix_high, size: 16)),
-                      ButtonSegment(value: 'gams', label: Text('Gämse'), icon: Icon(Icons.terrain, size: 16)),
-                      ButtonSegment(value: 'rehwild', label: Text('Reh'), icon: Icon(Icons.forest, size: 16)),
-                      ButtonSegment(value: 'rotwild', label: Text('Rotwild'), icon: Icon(Icons.park, size: 16)),
-                    ],
-                    selected: {_wildartHint},
-                    onSelectionChanged: (v) => setState(() => _wildartHint = v.first),
-                    style: ButtonStyle(
-                      backgroundColor: WidgetStateProperty.resolveWith<Color>(
-                        (states) => states.contains(WidgetState.selected)
-                            ? WaidblickColors.primary.withOpacity(0.2)
-                            : Colors.transparent,
-                      ),
-                    ),
-                  ),
+                Row(
+                  children: [
+                    _wildartBtn('auto', Icons.auto_fix_high, 'Auto'),
+                    const SizedBox(width: 6),
+                    _wildartBtn('gams', Icons.terrain, 'Gämse'),
+                    const SizedBox(width: 6),
+                    _wildartBtn('rehwild', Icons.forest, 'Reh'),
+                    const SizedBox(width: 6),
+                    _wildartBtn('rotwild', Icons.park, 'Rotwild'),
+                  ],
                 ),
               ],
             ),
