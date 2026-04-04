@@ -9,26 +9,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup SSH
+      - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/hetzner_key
-          chmod 600 ~/.ssh/hetzner_key
-          ssh-keyscan -H ${{ secrets.HETZNER_IP }} >> ~/.ssh/known_hosts
+          printf '%s' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H 204.168.216.110 >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Deploy Backend
+      - name: Copy backend
         run: |
-          scp -i ~/.ssh/hetzner_key backend/main.py root@${{ secrets.HETZNER_IP }}:/tmp/main.py
-          ssh -i ~/.ssh/hetzner_key root@${{ secrets.HETZNER_IP }} bash << 'ENDSSH'
-          apt-get update -qq && apt-get install -y python3-pip python3-venv 2>/dev/null
-          mkdir -p /opt/waidblick
-          cp /tmp/main.py /opt/waidblick/main.py
-          cd /opt/waidblick
-          python3 -m venv venv 2>/dev/null || true
-          ./venv/bin/pip install -q fastapi uvicorn python-multipart pillow google-generativeai python-dotenv openai slowapi httpx PyJWT
-          printf 'GEMINI_API_KEY=AIzaSyDfRrB08ur9TKPudCuHkFFI9lGzhwdg6mU\n' > .env
-          printf '[Unit]\nDescription=WAIDBLICK API\nAfter=network.target\n[Service]\nWorkingDirectory=/opt/waidblick\nEnvironmentFile=/opt/waidblick/.env\nExecStart=/opt/waidblick/venv/bin/uvicorn main:app --host 0.0.0.0 --port 80\nRestart=always\nRestartSec=5\n[Install]\nWantedBy=multi-user.target\n' > /etc/systemd/system/waidblick.service
-          systemctl daemon-reload && systemctl enable waidblick && systemctl restart waidblick
-          sleep 5
-          curl -s localhost/health
-          ENDSSH
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no backend/main.py root@204.168.216.110:/tmp/main.py
+
+      - name: Install and start
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@204.168.216.110 '
+            set -e
+            apt-get update -qq
+            apt-get install -y python3-pip python3-venv 2>/dev/null
+            mkdir -p /opt/waidblick
+            cp /tmp/main.py /opt/waidblick/main.py
+            cd /opt/waidblick
+            python3 -m venv venv 2>/dev/null || true
+            ./venv/bin/pip install -q fastapi uvicorn python-multipart pillow google-generativeai python-dotenv openai slowapi httpx PyJWT
+            printf "GEMINI_API_KEY=AIzaSyDfRrB08ur9TKPudCuHkFFI9lGzhwdg6mU\n" > .env
+            printf "[Unit]\nDescription=WAIDBLICK\nAfter=network.target\n[Service]\nWorkingDirectory=/opt/waidblick\nEnvironmentFile=/opt/waidblick/.env\nExecStart=/opt/waidblick/venv/bin/uvicorn main:app --host 0.0.0.0 --port 80\nRestart=always\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/waidblick.service
+            systemctl daemon-reload
+            systemctl enable waidblick
+            systemctl restart waidblick
+            sleep 8
+            curl -sf localhost/health
+          '
