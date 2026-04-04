@@ -45,6 +45,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Waidblick benötigt deinen Standort um Wildvorkommen in deiner Region anzuzeigen.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>WAIDBLICK nutzt deinen Standort für die Geo-Markierung von Sichtungen.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
