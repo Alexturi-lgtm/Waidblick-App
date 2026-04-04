@@ -26,23 +26,38 @@ jobs:
           set -e
           apt-get update -qq
           apt-get install -y python3-pip python3-venv 2>/dev/null
-          # Remove old broken venv and any conflicting google packages
-          rm -rf /opt/waidblick/venv
-          # Remove system-level google packages that conflict
-          pip3 uninstall -y google-generativeai google-auth googleapis-common-protos 2>/dev/null || true
+
+          # Remove ALL conflicting google namespace packages from system
+          pip3 uninstall -y google-generativeai google-genai google-auth google-cloud-core \
+            googleapis-common-protos google-api-core google-api-python-client \
+            google-cloud-storage 2>/dev/null || true
+          # Also remove via apt if installed system-wide
+          dpkg -r python3-google-auth 2>/dev/null || true
+
           mkdir -p /opt/waidblick
           cp /tmp/main.py /opt/waidblick/main.py
           cd /opt/waidblick
-          # Create fresh venv WITHOUT system packages
-          python3 -m venv --clear venv
-          # Upgrade pip first
+
+          # Fresh venv
+          rm -rf venv
+          python3 -m venv venv
+
+          # Install everything into venv
           ./venv/bin/pip install --upgrade pip -q
-          # Install all deps fresh in venv
-          ./venv/bin/pip install -q fastapi uvicorn python-multipart pillow google-generativeai python-dotenv openai slowapi httpx PyJWT
+          ./venv/bin/pip install fastapi uvicorn python-multipart pillow \
+            google-genai python-dotenv openai slowapi httpx PyJWT
+
+          # Debug: check what google packages are in venv
+          echo "=== Google packages in venv ==="
+          ./venv/bin/pip list | grep -i google || echo "none"
+          echo "=== Google paths ==="
+          ./venv/bin/python -c "import google; print(google.__path__)"
+
           # Verify import works
-          ./venv/bin/python -c "from google import genai; print('genai OK')"
+          ./venv/bin/python -c "from google import genai; print('genai import OK')"
+
           printf "GEMINI_API_KEY=AIzaSyDfRrB08ur9TKPudCuHkFFI9lGzhwdg6mU\n" > /opt/waidblick/.env
-          echo "Dependencies installed OK"
+          echo "All dependencies installed OK"
           EOF
 
       - name: Start service
@@ -68,9 +83,8 @@ jobs:
           systemctl enable waidblick
           systemctl restart waidblick
           sleep 10
-          systemctl status waidblick --no-pager || true
-          journalctl -u waidblick -n 20 --no-pager || true
-          curl -sf localhost/health || (echo "HEALTH FAILED"; journalctl -u waidblick -n 30 --no-pager; exit 1)
+          journalctl -u waidblick -n 30 --no-pager || true
+          curl -sf localhost/health || (echo "HEALTH FAILED"; exit 1)
           EOF
 
       - name: Verify health
