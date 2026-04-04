@@ -24,29 +24,31 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@204.168.216.110 bash -s << 'EOF'
           set -e
-          echo "=== APT UPDATE ==="
           apt-get update -qq
           apt-get install -y python3-pip python3-venv 2>/dev/null
-          echo "=== SETUP DIRS ==="
+          # Remove old broken venv and any conflicting google packages
+          rm -rf /opt/waidblick/venv
+          # Remove system-level google packages that conflict
+          pip3 uninstall -y google-generativeai google-auth googleapis-common-protos 2>/dev/null || true
           mkdir -p /opt/waidblick
           cp /tmp/main.py /opt/waidblick/main.py
           cd /opt/waidblick
-          echo "=== CREATE VENV ==="
-          python3 -m venv venv || true
-          echo "=== PIP INSTALL ==="
+          # Create fresh venv WITHOUT system packages
+          python3 -m venv --clear venv
+          # Upgrade pip first
+          ./venv/bin/pip install --upgrade pip -q
+          # Install all deps fresh in venv
           ./venv/bin/pip install -q fastapi uvicorn python-multipart pillow google-generativeai python-dotenv openai slowapi httpx PyJWT
-          echo "=== WRITE ENV ==="
+          # Verify import works
+          ./venv/bin/python -c "from google import genai; print('genai OK')"
           printf "GEMINI_API_KEY=AIzaSyDfRrB08ur9TKPudCuHkFFI9lGzhwdg6mU\n" > /opt/waidblick/.env
-          echo "=== DONE ==="
+          echo "Dependencies installed OK"
           EOF
 
       - name: Start service
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@204.168.216.110 bash -s << 'EOF'
           set -e
-          echo "=== CHECK SYSTEMD ==="
-          systemctl --version 2>&1 || echo "NO SYSTEMD"
-          echo "=== WRITE SERVICE ==="
           cat > /etc/systemd/system/waidblick.service << 'UNIT'
           [Unit]
           Description=WAIDBLICK
@@ -57,28 +59,23 @@ jobs:
           EnvironmentFile=/opt/waidblick/.env
           ExecStart=/opt/waidblick/venv/bin/uvicorn main:app --host 0.0.0.0 --port 80
           Restart=always
+          RestartSec=3
 
           [Install]
           WantedBy=multi-user.target
           UNIT
-          echo "=== DAEMON RELOAD ==="
           systemctl daemon-reload
-          echo "=== ENABLE + RESTART ==="
           systemctl enable waidblick
           systemctl restart waidblick
-          echo "=== SERVICE STATUS ==="
-          systemctl status waidblick --no-pager || true
-          echo "=== WAITING ==="
           sleep 10
-          echo "=== JOURNAL ==="
-          journalctl -u waidblick -n 30 --no-pager || true
-          echo "=== HEALTH CHECK ==="
-          curl -sf localhost/health
+          systemctl status waidblick --no-pager || true
+          journalctl -u waidblick -n 20 --no-pager || true
+          curl -sf localhost/health || (echo "HEALTH FAILED"; journalctl -u waidblick -n 30 --no-pager; exit 1)
           EOF
 
       - name: Verify health
         run: |
-          sleep 5
+          sleep 3
           curl -sf http://204.168.216.110/health
           echo ""
           echo "Deploy successful!"
