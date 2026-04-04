@@ -714,7 +714,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   String _wildartBg() {
     switch (_wildartHint) {
       case 'gams':    return 'assets/images/gams_bg.jpg';
-      case 'rehwild': return 'assets/images/waidblick-bg.jpg';
+      case 'rehwild': return 'assets/images/rehwild_bg.jpg';
       case 'rotwild': return 'assets/images/waidblick-bg.jpg';
       default:        return 'assets/images/gams_bg.jpg';
     }
@@ -1002,146 +1002,30 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 
   Widget _buildEmptyState() {
-    final accent = _wildartAccent();
-
-    return Stack(
+    return Column(
       children: [
-        // ── Scan Frame (zentral) ──────────────────────────────────────
-        Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        const Spacer(),
+        // Zwei Buttons direkt auf dem Hintergrund, unten
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Goldener Scan-Rahmen
-              GestureDetector(
+              _ghostButton(
+                icon: Icons.photo_camera_outlined,
+                label: '📷 Kamera',
                 onTap: _showPickerDialog,
-                child: SizedBox(
-                  width: 220,
-                  height: 220,
-                  child: CustomPaint(
-                    painter: _ScanFramePainter(accent),
-                    child: const Center(
-                      child: Icon(
-                        Icons.add_a_photo_outlined,
-                        color: Colors.white24,
-                        size: 48,
-                      ),
-                    ),
-                  ),
-                ),
               ),
-              const SizedBox(height: 14),
-              Text(
-                'Tippen zum Foto wählen',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: const Color(0xFFF5F0E8).withOpacity(0.5),
-                  letterSpacing: 1,
+              const SizedBox(width: 10),
+              _ghostButton(
+                icon: Icons.menu_book_outlined,
+                label: '📋 Anleitung',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PhotoGuideScreen()),
                 ),
               ),
             ],
-          ),
-        ),
-
-        // ── Bottom Sheet: Kamera-Button + Buttons ─────────────────────
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Color(0xF7141414),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              border: Border(
-                top: BorderSide(color: Color(0x14FFFFFF), width: 1),
-              ),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Handle
-                Container(
-                  width: 36, height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-
-                // "FOTO AUFNEHMEN" Label + großer Kamera-Button
-                Text(
-                  'FOTO AUFNEHMEN',
-                  style: TextStyle(
-                    fontSize: 10,
-                    letterSpacing: 2,
-                    color: const Color(0xFFF5F0E8).withOpacity(0.35),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                GestureDetector(
-                  onTap: _showPickerDialog,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Äußerer Ring
-                      Container(
-                        width: 80, height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: accent.withOpacity(0.25),
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      // Hauptbutton
-                      Container(
-                        width: 68, height: 68,
-                        decoration: BoxDecoration(
-                          color: accent,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: accent.withOpacity(0.35),
-                              blurRadius: 28,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          color: Colors.black,
-                          size: 28,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Kamera + Anleitung Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _ghostButton(
-                      icon: Icons.photo_camera_outlined,
-                      label: 'Kamera',
-                      onTap: () => _pickPhoto(ImageSource.camera),
-                    ),
-                    const SizedBox(width: 10),
-                    _ghostButton(
-                      icon: Icons.menu_book_outlined,
-                      label: 'Anleitung',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const PhotoGuideScreen()),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
           ),
         ),
       ],
@@ -1612,50 +1496,4 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 }
 
-/// CustomPainter: Goldener Scan-Rahmen mit Ecken (wie Web scan-frame)
-class _ScanFramePainter extends CustomPainter {
-  final Color accent;
-  const _ScanFramePainter(this.accent);
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = accent
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.square;
-
-    const cornerLen = 22.0;
-    const r = 20.0; // border-radius
-    final w = size.width;
-    final h = size.height;
-
-    // Hauptrahmen (leicht transparent)
-    final framePaint = Paint()
-      ..color = accent.withOpacity(0.35)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, w, h),
-      const Radius.circular(r),
-    );
-    canvas.drawRRect(rrect, framePaint);
-
-    // Ecken (solide, gold)
-    // oben-links
-    canvas.drawLine(Offset(0, r), Offset(0, r + cornerLen), paint);
-    canvas.drawLine(Offset(r, 0), Offset(r + cornerLen, 0), paint);
-    // oben-rechts
-    canvas.drawLine(Offset(w, r), Offset(w, r + cornerLen), paint);
-    canvas.drawLine(Offset(w - r, 0), Offset(w - r - cornerLen, 0), paint);
-    // unten-links
-    canvas.drawLine(Offset(0, h - r), Offset(0, h - r - cornerLen), paint);
-    canvas.drawLine(Offset(r, h), Offset(r + cornerLen, h), paint);
-    // unten-rechts
-    canvas.drawLine(Offset(w, h - r), Offset(w, h - r - cornerLen), paint);
-    canvas.drawLine(Offset(w - r, h), Offset(w - r - cornerLen, h), paint);
-  }
-
-  @override
-  bool shouldRepaint(_ScanFramePainter old) => old.accent != accent;
-}
