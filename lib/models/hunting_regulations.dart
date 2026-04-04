@@ -112,8 +112,23 @@ class HuntingRegulation {
   }
 
   /// Freigabe-Text für gegebene Schätzung
-  String freigabeText(double meanAge, double pBock, double pGeis) {
+  /// [geschlechtSicherheit]: 'hoch', 'mittel', 'niedrig' — bei 'niedrig' kein geschlechtsspezifisches Jagdrecht
+  String freigabeText(
+    double meanAge,
+    double pBock,
+    double pGeis, {
+    String geschlechtSicherheit = 'hoch',
+  }) {
     final age = meanAge.round();
+
+    // Geschlecht nicht bestimmbar → kein geschlechtsspezifisches Jagdrecht
+    final pUnsicher = 1.0 - pBock - pGeis;
+    final maxProb = [pBock, pGeis, pUnsicher].reduce((a, b) => a > b ? a : b);
+    final allSimilar = maxProb < 0.45; // Werte liegen nah beieinander (~33% je)
+    if (geschlechtSicherheit == 'niedrig' || allSimilar) {
+      return '⚠️ Geschlecht nicht bestimmbar — Jagdrecht je nach Geschlecht unterschiedlich. Bitte vor Ort beurteilen.';
+    }
+
     final isBock = pBock > pGeis;
     if (isBock) {
       if (isBockFreigegeben(age)) {

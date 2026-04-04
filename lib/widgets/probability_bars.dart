@@ -17,13 +17,18 @@ class ProbabilityBars extends StatelessWidget {
   });
 
   /// Geschlecht als lesbaren String
-  static String _sexLabel(double pBock, double pGeis, double pUnsicher) {
+  static String _sexLabel(double pBock, double pGeis, double pUnsicher, String geschlechtSicherheit) {
+    // Geschlecht unbestimmbar: Sicherheit niedrig oder alle Werte ähnlich (~33%)
+    final maxProb = [pBock, pGeis, pUnsicher].reduce((a, b) => a > b ? a : b);
+    if (geschlechtSicherheit == 'niedrig' || maxProb < 0.45) return 'Geschlecht unbekannt';
     if (pUnsicher > 0.5) return 'Unbekannt';
     if (pBock > pGeis) return 'Männlich (Bock)';
     return 'Weiblich (Geiß)';
   }
 
-  static double _dominantSexProb(double pBock, double pGeis, double pUnsicher) {
+  static double _dominantSexProb(double pBock, double pGeis, double pUnsicher, String geschlechtSicherheit) {
+    final maxProb = [pBock, pGeis, pUnsicher].reduce((a, b) => a > b ? a : b);
+    if (geschlechtSicherheit == 'niedrig' || maxProb < 0.45) return maxProb;
     if (pUnsicher > 0.5) return pUnsicher;
     return pBock > pGeis ? pBock : pGeis;
   }
@@ -37,10 +42,10 @@ class ProbabilityBars extends StatelessWidget {
   Widget build(BuildContext context) {
     // ── Hauptergebnis ──────────────────────────────────────────────
     final domProb = estimate.dominantProbability;
-    final sexLabel =
-        _sexLabel(estimate.pBock, estimate.pGeis, estimate.pUnsicher);
-    final sexProb =
-        _dominantSexProb(estimate.pBock, estimate.pGeis, estimate.pUnsicher);
+    final sexLabel = _sexLabel(
+        estimate.pBock, estimate.pGeis, estimate.pUnsicher, estimate.geschlechtSicherheit);
+    final sexProb = _dominantSexProb(
+        estimate.pBock, estimate.pGeis, estimate.pUnsicher, estimate.geschlechtSicherheit);
     final meanAge = estimate.meanAge;
     final stdDev = estimate.stdDev;
     final meanAgeRounded = meanAge.round();
@@ -83,22 +88,27 @@ class ProbabilityBars extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: WaidblickColors.primary.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${(sexProb * 100).round()}%',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: WaidblickColors.primary,
-                        fontWeight: FontWeight.w600,
+                  // Geschlecht-Sicherheit Badge
+                  Builder(builder: (context) {
+                    final maxP = [estimate.pBock, estimate.pGeis, estimate.pUnsicher].reduce((a, b) => a > b ? a : b);
+                    final isUnknown = estimate.geschlechtSicherheit == 'niedrig' || maxP < 0.45;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: WaidblickColors.primary.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                    ),
-                  ),
+                      child: Text(
+                        isUnknown ? '?' : '${(sexProb * 100).round()}%',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: WaidblickColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  }),
                 ],
               ),
               const SizedBox(height: 10),
@@ -128,7 +138,7 @@ class ProbabilityBars extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Text('Wahrscheinlichkeit',
+                      const Text('Altersklasse-Match',
                           style: TextStyle(
                               color: WaidblickColors.textSecondary,
                               fontSize: 11)),

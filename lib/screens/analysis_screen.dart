@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:exif/exif.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
@@ -50,6 +52,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   String _wildartHint = 'auto'; // 'auto', 'gams', 'rehwild', 'rotwild'
   String _detectedRegion = 'Bayern'; // GPS-bestimmte Region
   bool _erlegerbild = false; // Erlegerbild erkannt
+  DateTime? _exifDate; // EXIF-Datum aus hochgeladenem Foto
+  String? _exifDateHint; // Hinweis-Text für UI
   // _multiPhotoCount entfernt (wird nur intern gezählt, kein UI-Feedback nötig)
 
   // Zufallsname-System: 40 Adjektive × 40 Namen = 1600 Kombinationen
@@ -114,6 +118,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       _currentPosition = null;
       _latestVisionEstimate = null;
       _erlegerbild = false;
+      _exifDate = null;
+      _exifDateHint = null;
     });
   }
 
@@ -127,7 +133,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     if (pickedList.isEmpty) return;
     // Anzahl der ausgewählten Fotos
     for (final file in pickedList) {
-      await _analyzeXFile(file);
+      await _analyzeXFile(file, fromGallery: true);
     }
   }
 
@@ -139,10 +145,114 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       imageQuality: 85,
     );
     if (picked == null) return;
-    await _analyzeXFile(picked);
+    await _analyzeXFile(picked, fromGallery: source == ImageSource.gallery);
   }
 
-  Future<void> _analyzeXFile(XFile picked) async {
+
+  /// Liest das EXIF-Datum (DateTimeOriginal) aus einem Bild-Dateipfad.
+  Future<DateTime?> _readExifDate(String path) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      final data = await readExifFromBytes(bytes);
+      final tag = data['EXIF DateTimeOriginal'] ?? data['Image DateTime'];
+      if (tag == null) return null;
+      final raw = tag.printable; // Format: '2024:03:15 10:30:00'
+      final parts = raw.trim().split(' ');
+      if (parts.length < 2) return null;
+      final dateParts = parts[0].split(':');
+      final timeParts = parts[1].split(':');
+      if (dateParts.length < 3) return null;
+      return DateTime(
+        int.parse(dateParts[0]),
+        int.parse(dateParts[1]),
+        int.parse(dateParts[2]),
+        timeParts.isNotEmpty ? int.tryParse(timeParts[0]) ?? 0 : 0,
+        timeParts.length > 1 ? int.tryParse(timeParts[1]) ?? 0 : 0,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Dialog: Aufnahmeort bei hochgeladenem Foto abfragen
+  Future<void> _showLocationDialog() async {
+    if (!mounted) return;
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Text('📍', style: TextStyle(fontSize: 20)),
+            SizedBox(width: 8),
+            Text('Aufnahmeort'),
+          ],
+        ),
+        content: const Text('Wo wurde dieses Foto aufgenommen?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'gps'),
+            child: const Text('Aktueller Standort'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'manual'),
+            child: const Text('Region wählen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'unknown'),
+            child: const Text('Unbekannt'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == 'gps') {
+      final position = await LocationService.getCurrentPosition();
+      if (mounted && position != null) {
+        setState(() {
+          _currentPosition = position;
+          _detectedRegion = RegionalData.detectRegion(
+              position.latitude, position.longitude);
+          _huntingRegion = _regionStringToEnum(_detectedRegion);
+        });
+      }
+    } else if (result == 'manual') {
+      const regions = ['Bayern', 'Tirol', 'Steiermark', 'Salzburg', 'Vorarlberg', 'Schweiz', 'Sonstige'];
+      if (!mounted) return;
+      final chosen = await showDialog<String>(
+        context: context,
+        builder: (ctx) => SimpleDialog(
+          title: const Text('Region wählen'),
+          children: regions
+              .map((r) => SimpleDialogOption(
+                    onPressed: () => Navigator.pop(ctx, r),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text(r, style: const TextStyle(fontSize: 16)),
+                    ),
+                  ))
+              .toList(),
+        ),
+      );
+      if (chosen != null && mounted) {
+        setState(() {
+          _detectedRegion = chosen;
+          _huntingRegion = _regionStringToEnum(chosen);
+          _currentPosition = null;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _currentPosition = null;
+          _detectedRegion = 'Unbekannt';
+          _huntingRegion = HuntingRegion.other;
+        });
+      }
+    }
+  }
+
+  Future<void> _analyzeXFile(XFile picked, {bool fromGallery = false}) async {
     // Freemium-Check: Analyse-Limit
     final canAnalyze = await FreemiumService.canAnalyze();
     if (!canAnalyze && mounted) {
@@ -208,19 +318,55 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         }
       }
 
-      // GPS automatisch holen (erstes Foto setzt die Position)
+      // GPS/Geo-Logik: Bei Galerie-Upload -> Dialog, bei Kamera -> automatisch GPS
       if (_photos.isEmpty) {
-        final position = await LocationService.getCurrentPosition();
-        if (mounted) {
-          setState(() {
-            _currentPosition = position;
-            if (position != null) {
-              _detectedRegion = RegionalData.detectRegion(
-                position.latitude, position.longitude);
-              // HuntingRegion mit GPS-erkannter Region synchronisieren
-              _huntingRegion = _regionStringToEnum(_detectedRegion);
+        if (fromGallery) {
+          // Bug 3 Fix: Geo-Dialog bei hochgeladenem Foto
+          setState(() => _isAnalyzing = false);
+          await _showLocationDialog();
+          setState(() => _isAnalyzing = true);
+
+          // Bug 4 Fix: EXIF-Datum lesen
+          final exifDate = await _readExifDate(picked.path);
+          if (mounted) {
+            if (exifDate != null) {
+              setState(() {
+                _exifDate = exifDate;
+                final d = exifDate;
+                _exifDateHint = '📅 Aufnahme: ${d.day.toString().padLeft(2, "0")}.${d.month.toString().padLeft(2, "0")}.${d.year} (aus Foto-Metadaten)';
+              });
+            } else {
+              // Kein EXIF: DatePicker zeigen
+              setState(() => _isAnalyzing = false);
+              if (mounted) {
+                final pickedDate = await showDatePicker(
+                  context: context,
+                  helpText: 'Wann wurde dieses Foto aufgenommen?',
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime.now(),
+                );
+                if (pickedDate != null) {
+                  setState(() => _exifDate = pickedDate);
+                }
+              }
+              setState(() => _isAnalyzing = true);
             }
-          });
+          }
+        } else {
+          // Kamera: automatisch GPS
+          final position = await LocationService.getCurrentPosition();
+          if (mounted) {
+            setState(() {
+              _currentPosition = position;
+              if (position != null) {
+                _detectedRegion = RegionalData.detectRegion(
+                    position.latitude, position.longitude);
+                // HuntingRegion mit GPS-erkannter Region synchronisieren
+                _huntingRegion = _regionStringToEnum(_detectedRegion);
+              }
+            });
+          }
         }
       }
 
@@ -461,7 +607,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final estimate = _engine.current;
     String name = '';
     String revier = '';
-    DateTime capturedDate = DateTime.now();
+    DateTime capturedDate = _exifDate ?? DateTime.now();
     int? geburtsjahrgang;
     final nameController = TextEditingController();
 
@@ -1542,6 +1688,27 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         ),
                       ),
                     ],
+                    // EXIF-Datum-Hinweis anzeigen wenn vorhanden
+                    if (_exifDateHint != null) ...[  
+                      const SizedBox(height: 4),
+                      Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.calendar_today,
+                                size: 12,
+                                color: WaidblickColors.primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              _exifDateHint!,
+                              style: const TextStyle(
+                                  color: WaidblickColors.primary,
+                                  fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const Divider(height: 24, color: WaidblickColors.border),
                     // Merkmals-Beschreibung
                     const Text(
@@ -1575,6 +1742,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         estimate.meanAge,
                         estimate.pBock,
                         estimate.pGeis,
+                        geschlechtSicherheit: estimate.geschlechtSicherheit,
                       ),
                       style: const TextStyle(
                           color: WaidblickColors.textSecondary),
