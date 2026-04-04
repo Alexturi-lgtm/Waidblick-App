@@ -21,6 +21,9 @@ import '../widgets/age_class_badge.dart';
 import '../widgets/photo_quality_indicator.dart';
 import '../widgets/probability_bars.dart';
 import 'photo_guide_screen.dart';
+import 'paywall_screen.dart';
+import '../services/freemium_service.dart';
+import '../services/regional_data.dart';
 // settings_screen.dart used via HomeScreen tab
 
 /// Analyse-Screen: Foto aufnehmen/auswählen → ML → Bayes → Ergebnis anzeigen
@@ -45,6 +48,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   Position? _currentPosition;
   AgeEstimate? _latestVisionEstimate; // Letzte Vision-API Schätzung
   String _wildartHint = 'auto'; // 'auto', 'gams', 'rehwild', 'rotwild'
+  String _detectedRegion = 'Bayern'; // GPS-bestimmte Region
+  bool _erlegerbild = false; // Erlegerbild erkannt
   // _multiPhotoCount entfernt (wird nur intern gezählt, kein UI-Feedback nötig)
 
   // Zufallsname-System: 40 Adjektive × 40 Namen = 1600 Kombinationen
@@ -91,6 +96,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       _engine.reset();
       _currentPosition = null;
       _latestVisionEstimate = null;
+      _erlegerbild = false;
     });
   }
 
@@ -120,6 +126,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 
   Future<void> _analyzeXFile(XFile picked) async {
+    // Freemium-Check: Analyse-Limit
+    final canAnalyze = await FreemiumService.canAnalyze();
+    if (!canAnalyze && mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PaywallScreen()),
+      );
+      return;
+    }
+
     final imageBytes = await picked.readAsBytes();
     if (mounted) setState(() => _isAnalyzing = true);
 
@@ -175,34 +191,50 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         }
       }
 
-      // NEUER FLOW: Vision API ist primary, kein Mock
-      try {
-        // Vision API aufrufen (echte KI-Analyse)
-        final visionEstimate = await VisionApiService.analyze(
-          imageBytes: imageBytes,
-          wildartHint: _wildartHint,
-          region: _huntingRegion.name,
-          photoCount: _photos.length + 1,
-          previousEstimate: _latestVisionEstimate,
-        );
-        // Vision-Ergebnis direkt in die Bayes-Engine laden (kein Mock-Overlay)
-        _engine.setFromVision(visionEstimate);
-        _latestVisionEstimate = visionEstimate;
-      } catch (e) {
-        // Nur bei echtem Fehler: Mock als Fallback
-        final mockResult = await _mlService.analyze(imageBytes);
-        _engine.processScores(
-            mockResult.scores, mockResult.quality, mockResult.perspective);
-      }
-
       // GPS automatisch holen (erstes Foto setzt die Position)
       if (_photos.isEmpty) {
         final position = await LocationService.getCurrentPosition();
         if (mounted) {
           setState(() {
             _currentPosition = position;
+            if (position != null) {
+              _detectedRegion = RegionalData.detectRegion(
+                position.latitude, position.longitude);
+            }
           });
         }
+      }
+
+      // NEUER FLOW: Vision API ist primary, kein Mock
+      try {
+        // Vision API aufrufen (echte KI-Analyse)
+        final visionEstimate = await VisionApiService.analyze(
+          imageBytes: imageBytes,
+          wildartHint: _wildartHint,
+          region: _detectedRegion,
+          photoCount: _photos.length + 1,
+          previousEstimate: _latestVisionEstimate,
+        );
+        // Vision-Ergebnis direkt in die Bayes-Engine laden (kein Mock-Overlay)
+        _engine.setFromVision(visionEstimate);
+        _latestVisionEstimate = visionEstimate;
+
+        // Erlegerbild-Erkennung
+        final begr = visionEstimate.begruendung.toLowerCase();
+        final isErlegerbild = visionEstimate.confidence < 0.4 ||
+            begr.contains('liegend') ||
+            begr.contains('erlegerbild') ||
+            begr.contains('körper nicht');
+        if (mounted) setState(() => _erlegerbild = isErlegerbild);
+
+        // Freemium-Counter erhöhen
+        await FreemiumService.incrementAnalyseCount();
+      } catch (e) {
+        // Nur bei echtem Fehler: Mock als Fallback
+        final mockResult = await _mlService.analyze(imageBytes);
+        _engine.processScores(
+            mockResult.scores, mockResult.quality, mockResult.perspective);
+        await FreemiumService.incrementAnalyseCount();
       }
 
       if (mounted) setState(() {
@@ -395,10 +427,23 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 
   Future<void> _saveGams() async {
+    // Freemium-Check: Lookbook-Limit
+    final currentCount = DatabaseService.instance.individuals.length;
+    final canSave = await FreemiumService.canSaveToLookbook(currentCount);
+    if (!canSave && mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => const PaywallScreen(isLookbookLimit: true)),
+      );
+      return;
+    }
+
     final estimate = _engine.current;
     String name = '';
     String revier = '';
     DateTime capturedDate = DateTime.now();
+    int? geburtsjahrgang;
     final nameController = TextEditingController();
 
     final confirmed = await showDialog<bool>(
@@ -468,16 +513,89 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 ),
               ),
             ),
-            if (_currentPosition != null) ...[
+            const SizedBox(height: 8),
+            // Geburtsjahr-Picker
+            InkWell(
+              onTap: () async {
+                final currentYear = DateTime.now().year;
+                final initialYear = geburtsjahrgang ?? currentYear - (estimate.meanAge.round());
+                final picked = await showDialog<int>(
+                  context: ctx2,
+                  builder: (yearCtx) {
+                    int selectedYear = initialYear.clamp(currentYear - 25, currentYear);
+                    return AlertDialog(
+                      title: const Text('Geburtsjahrgang'),
+                      content: StatefulBuilder(
+                        builder: (yCtx, ySetS) => SizedBox(
+                          width: 200,
+                          height: 160,
+                          child: ListWheelScrollView(
+                            itemExtent: 40,
+                            onSelectedItemChanged: (i) {
+                              selectedYear = currentYear - i;
+                              ySetS(() {});
+                            },
+                            children: List.generate(26, (i) {
+                              final y = currentYear - i;
+                              return Center(
+                                child: Text(
+                                  '$y',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: y == selectedYear
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(yearCtx),
+                          child: const Text('Abbrechen'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(yearCtx, selectedYear),
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (picked != null) setS(() => geburtsjahrgang = picked);
+              },
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Geburtsjahrgang (optional)',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.cake_outlined, size: 16),
+                    const SizedBox(width: 8),
+                    Text(geburtsjahrgang != null
+                        ? 'Jahrgang $geburtsjahrgang'
+                        : 'Nicht angegeben'),
+                  ],
+                ),
+              ),
+            ),
+            if (_currentPosition != null) ...[  
               const SizedBox(height: 8),
               Row(
                 children: [
                   const Icon(Icons.location_on, size: 14, color: Colors.green),
                   const SizedBox(width: 4),
-                  Text(
-                    'GPS: ${_currentPosition!.latitude.toStringAsFixed(4)}°, '
-                    '${_currentPosition!.longitude.toStringAsFixed(4)}°',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  Expanded(
+                    child: Text(
+                      'GPS: ${_currentPosition!.latitude.toStringAsFixed(4)}°, '
+                      '${_currentPosition!.longitude.toStringAsFixed(4)}° • $_detectedRegion',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                   ),
                 ],
               ),
@@ -519,6 +637,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       lastSeen: now,
       currentEstimate: estimate,
       sightings: [sighting],
+      geburtsjahrgang: geburtsjahrgang,
+      region: _detectedRegion,
     );
 
     await DatabaseService.instance.addIndividual(individual);
@@ -535,7 +655,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 
   /// Wildart-Auswahl Button
-  /// Scoring-Matrix Card: zeigt die 6 Alters-Merkmale mit 1–5 Pkt Bewertung
+  /// Scoring-Matrix Card: zeigt die 6 Alters-Merkmale mit 1-5 Pkt Bewertung
   Widget _buildScoringCard(AgeEstimate estimate) {
     final scoring = estimate.scoring!;
 
@@ -562,7 +682,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         ('maehne_fell', Icons.texture_outlined, 'Mähne/Fell', '10%'),
       ];
     } else {
-      // Gams (default) — exakte Backend-Keys
+      // Gams (default) - exakte Backend-Keys
       merkmale = [
         ('windfang', Icons.air_rounded, 'Windfang', '25%'),
         ('gesichtszuegel', Icons.face_outlined, 'Gesichtszügel', '20%'),
@@ -668,7 +788,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           )
                         else
                           const Text(
-                            '—',
+                            '-',
                             style: TextStyle(
                               fontSize: 11,
                               color: WaidblickColors.textSecondary,
@@ -978,7 +1098,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               ),
               SizedBox(height: 6),
               Text(
-                'Bitte warten…',
+                'Bitte warten...',
                 style: TextStyle(
                   fontSize: 13,
                   color: WaidblickColors.textSecondary,
@@ -1140,6 +1260,49 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             const SizedBox(height: 16),
           ],
 
+          // Erlegerbild-Warning
+          if (_erlegerbild && !estimate.isNotGams) ...[
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8E1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: const Color(0xFFFFC107), width: 1.5),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            color: Color(0xFFF57F17), size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          '⚠️ Eingeschränkte Analyse',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFF57F17),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Liegend/Erlegerbild erkannt. Nur Trophäe auswertbar.\n'
+                      'Körpermerkmale nicht sichtbar - Schätzung ungenau.',
+                      style: TextStyle(
+                          color: Color(0xFF5D4037), fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
           // Unsicher-Hinweis
           if (estimate.isUncertain && !estimate.isNotGams) ...[
             Container(
@@ -1158,7 +1321,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Konfidenz niedrig — bitte weitere Fotos aus anderer Perspektive hinzufügen.',
+                        'Konfidenz niedrig - bitte weitere Fotos aus anderer Perspektive hinzufügen.',
                         style:
                             TextStyle(color: WaidblickColors.textPrimary),
                       ),
@@ -1170,7 +1333,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             const SizedBox(height: 12),
           ],
 
-          // Dominante Altersklasse — Waidblick Premium Card
+          // Dominante Altersklasse - Waidblick Premium Card
           if (!estimate.isNotGams)
             Container(
               decoration: BoxDecoration(
@@ -1314,6 +1477,30 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         ),
                       ),
                     ),
+                    // Region-Badge anzeigen wenn GPS verfügbar
+                    if (_currentPosition != null) ...[
+                      const SizedBox(height: 4),
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: WaidblickColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: WaidblickColors.primary.withOpacity(0.4)),
+                          ),
+                          child: Text(
+                            '📍 $_detectedRegion',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: WaidblickColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                     // GPS-Info anzeigen wenn vorhanden
                     if (_currentPosition != null) ...[
                       const SizedBox(height: 4),
@@ -1446,7 +1633,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             const SizedBox(height: 8),
           ],
 
-          // Wahrscheinlichkeits-Balken — nur anzeigen wenn Schalenwild erkannt
+          // Wahrscheinlichkeits-Balken - nur anzeigen wenn Schalenwild erkannt
           if (!estimate.isNotGams)
             Card(
               child: Padding(

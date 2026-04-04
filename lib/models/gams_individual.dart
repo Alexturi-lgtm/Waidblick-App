@@ -15,6 +15,8 @@ class GamsIndividual {
   final DateTime? capturedDate; // Aufnahmedatum
   final DateTime? erlegtAt; // Erlegungsdatum
   final int? tatsaechlichesAlter; // Tatsächliches Alter in Jahren
+  final int? geburtsjahrgang; // Geburtsjahrgang (z.B. 2019)
+  final String? region; // Erkannte Region (z.B. 'Bayern')
 
   const GamsIndividual({
     required this.id,
@@ -28,6 +30,8 @@ class GamsIndividual {
     this.capturedDate,
     this.erlegtAt,
     this.tatsaechlichesAlter,
+    this.geburtsjahrgang,
+    this.region,
   });
 
   /// Menschenlesbare Beschreibung der aktuellen Altersschätzung
@@ -58,6 +62,9 @@ class GamsIndividual {
     bool clearErlegtAt = false,
     int? tatsaechlichesAlter,
     bool clearTatsaechlichesAlter = false,
+    int? geburtsjahrgang,
+    bool clearGeburtsjahrgang = false,
+    String? region,
   }) {
     return GamsIndividual(
       id: id,
@@ -73,6 +80,8 @@ class GamsIndividual {
       tatsaechlichesAlter: clearTatsaechlichesAlter
           ? null
           : (tatsaechlichesAlter ?? this.tatsaechlichesAlter),
+      geburtsjahrgang: clearGeburtsjahrgang ? null : (geburtsjahrgang ?? this.geburtsjahrgang),
+      region: region ?? this.region,
     );
   }
 
@@ -88,6 +97,8 @@ class GamsIndividual {
         if (capturedDate != null) 'capturedDate': capturedDate!.toIso8601String(),
         if (erlegtAt != null) 'erlegtAt': erlegtAt!.toIso8601String(),
         if (tatsaechlichesAlter != null) 'tatsaechlichesAlter': tatsaechlichesAlter,
+        if (geburtsjahrgang != null) 'geburtsjahrgang': geburtsjahrgang,
+        if (region != null) 'region': region,
       };
 
   factory GamsIndividual.fromJson(Map<String, dynamic> json) => GamsIndividual(
@@ -109,5 +120,7 @@ class GamsIndividual {
             ? DateTime.parse(json['erlegtAt'] as String)
             : null,
         tatsaechlichesAlter: json['tatsaechlichesAlter'] as int?,
+        geburtsjahrgang: json['geburtsjahrgang'] as int?,
+        region: json['region'] as String?,
       );
 }

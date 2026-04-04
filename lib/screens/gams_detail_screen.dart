@@ -1,9 +1,13 @@
 import 'dart:io' show File;
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../models/sighting.dart';
 import '../services/bayesian_engine.dart';
 import '../services/database_service.dart';
@@ -109,6 +113,210 @@ class _GamsDetailScreenState extends State<GamsDetailScreen> {
     }
   }
 
+  Future<void> _editGeburtsjahrgang(GamsIndividual individual) async {
+    int? jahrgang = individual.geburtsjahrgang;
+    final currentYear = DateTime.now().year;
+
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Geburtsjahrgang'),
+        content: SizedBox(
+          width: 200,
+          height: 160,
+          child: ListWheelScrollView(
+            itemExtent: 40,
+            onSelectedItemChanged: (i) => jahrgang = currentYear - i,
+            children: List.generate(26, (i) {
+              final y = currentYear - i;
+              return Center(
+                child: Text('$y', style: const TextStyle(fontSize: 20)),
+              );
+            }),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, jahrgang),
+            child: const Text('Speichern'),
+          ),
+        ],
+      ),
+    );
+
+    if (picked != null) {
+      final updated = individual.copyWith(geburtsjahrgang: picked);
+      await DatabaseService.instance.updateIndividual(updated);
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _sharePdf(GamsIndividual individual) async {
+    final est = individual.currentEstimate;
+    final dateStr = DateFormat('dd.MM.yyyy').format(DateTime.now());
+    final confPct = (est.confidence * 100).round();
+
+    // Foto laden wenn vorhanden
+    Uint8List? photoBytes;
+    final photoPath = individual.firstPhotoPath;
+    if (photoPath != null && !kIsWeb) {
+      try {
+        photoBytes = await File(photoPath).readAsBytes();
+      } catch (_) {}
+    }
+
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('WAIDBLICK',
+                      style: pw.TextStyle(
+                          fontSize: 24,
+                          fontWeight: pw.FontWeight.bold,
+                          color: const PdfColor.fromInt(0xFFF5A623))),
+                  pw.Text(dateStr,
+                      style: const pw.TextStyle(fontSize: 12)),
+                ],
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text('WILDTIER-ANALYSE',
+                  style: const pw.TextStyle(
+                      fontSize: 10, color: PdfColors.grey600)),
+              pw.Divider(),
+              pw.SizedBox(height: 8),
+
+              // Tier-Foto
+              if (photoBytes != null) ...[  
+                pw.Center(
+                  child: pw.ClipRRect(
+                    horizontalRadius: 8,
+                    verticalRadius: 8,
+                    child: pw.Image(
+                      pw.MemoryImage(photoBytes),
+                      width: 300,
+                      height: 200,
+                      fit: pw.BoxFit.cover,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 12),
+              ],
+
+              // Basis-Info Grid
+              pw.Row(
+                children: [
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        _pdfField('Name', individual.name),
+                        _pdfField('Geschlecht', est.isMale ? 'Männlich' : 'Weiblich'),
+                        _pdfField('KI-Alter', '~${est.meanAge.round()} Jahre'),
+                        _pdfField('Altersklasse', est.dominantAgeLabel),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(width: 20),
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        _pdfField('Wildart', individual.wildart),
+                        _pdfField('Region', individual.region ?? 'Bayern'),
+                        if (individual.geburtsjahrgang != null)
+                          _pdfField('Geburtsjahrgang', '${individual.geburtsjahrgang}'),
+                        _pdfField('Revier', individual.revier),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 12),
+              pw.Divider(),
+
+              // Analyse-Begründung
+              if (est.begruendung.isNotEmpty) ...[  
+                pw.Text('Analyse:',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 4),
+                pw.Text(est.begruendung,
+                    style: const pw.TextStyle(fontSize: 11)),
+                pw.SizedBox(height: 8),
+              ],
+
+              // Merkmale
+              if (est.merkmale.isNotEmpty) ...[  
+                pw.Text('Erkannte Merkmale:',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 4),
+                ...est.merkmale.map((m) => pw.Text('• $m',
+                    style: const pw.TextStyle(fontSize: 11))),
+                pw.SizedBox(height: 8),
+              ],
+
+              // Confidence + Disclaimer
+              pw.Divider(),
+              pw.Text('KI-Confidence: $confPct%',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                '⚠️ Diese Schätzung ersetzt keine fachkundige Beurteilung.',
+                style: const pw.TextStyle(
+                    fontSize: 10, color: PdfColors.orange800),
+              ),
+              pw.Spacer(),
+              pw.Divider(),
+              pw.Center(
+                child: pw.Text('WAIDBLICK — waidblick.app',
+                    style: const pw.TextStyle(
+                        fontSize: 10, color: PdfColors.grey600)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.sharePdf(
+      bytes: await pdf.save(),
+      filename: 'waidblick_${individual.name.replaceAll(' ', '_')}.pdf',
+    );
+  }
+
+  pw.Widget _pdfField(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 4),
+      child: pw.RichText(
+        text: pw.TextSpan(
+          children: [
+            pw.TextSpan(
+              text: '$label: ',
+              style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold, fontSize: 11),
+            ),
+            pw.TextSpan(
+              text: value,
+              style: const pw.TextStyle(fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _editTatsaechlichesAlter(GamsIndividual individual) async {
     int? alter = individual.tatsaechlichesAlter;
     final controller =
@@ -202,6 +410,13 @@ class _GamsDetailScreenState extends State<GamsDetailScreen> {
             child: Text(individual.revier, style: const TextStyle(fontSize: 12)),
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'PDF teilen',
+            onPressed: () => _sharePdf(individual),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _isAnalyzing ? null : _addSighting,
@@ -257,6 +472,40 @@ class _GamsDetailScreenState extends State<GamsDetailScreen> {
                           style: const TextStyle(
                               fontSize: 13,
                               color: Colors.green,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (individual.geburtsjahrgang != null) ...[  
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.cake_outlined,
+                            size: 14, color: Colors.blueGrey),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Tatsächlich: Jahrgang ${individual.geburtsjahrgang}',
+                          style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.blueGrey,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (individual.region != null) ...[  
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on_outlined,
+                            size: 14, color: Colors.orange),
+                        const SizedBox(width: 4),
+                        Text(
+                          '📍 ${individual.region}',
+                          style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.orange,
                               fontWeight: FontWeight.w600),
                         ),
                       ],
@@ -321,6 +570,22 @@ class _GamsDetailScreenState extends State<GamsDetailScreen> {
                   trailing: IconButton(
                     icon: const Icon(Icons.edit_outlined),
                     onPressed: () => _editTatsaechlichesAlter(individual),
+                  ),
+                ),
+                const Divider(height: 1),
+                // Geburtsjahrgang
+                ListTile(
+                  leading: const Icon(Icons.today_outlined),
+                  title: const Text('Geburtsjahrgang',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(
+                    individual.geburtsjahrgang != null
+                        ? 'Jahrgang ${individual.geburtsjahrgang}'
+                        : 'Nicht eingetragen',
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () => _editGeburtsjahrgang(individual),
                   ),
                 ),
               ],
