@@ -5,8 +5,8 @@ import 'package:http/http.dart' as http;
 import '../models/age_estimate.dart';
 
 class VisionApiService {
-  // Backend URL — ngrok für Beta/PWA-Testing
-  static String backendUrl = 'https://crinal-pervertible-colette.ngrok-free.dev';
+  // Backend URL — Hetzner Server
+  static String backendUrl = 'http://204.168.216.110';
 
   static Future<AgeEstimate> analyze({
     required Uint8List imageBytes,
@@ -18,8 +18,8 @@ class VisionApiService {
     try {
       final request = http.MultipartRequest(
           'POST', Uri.parse('$backendUrl/analyze'));
-      // ngrok: ohne diesen Header liefert ngrok HTML statt JSON
-      request.headers.addAll({'ngrok-skip-browser-warning': 'true'});
+      // Hetzner Server
+      request.headers.addAll({'Content-Type': 'multipart/form-data'});
       request.fields['wildart_hint'] = wildartHint;
       request.fields['region'] = region;
       request.files.add(http.MultipartFile.fromBytes(
