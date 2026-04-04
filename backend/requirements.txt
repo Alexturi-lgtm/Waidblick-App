@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-multipart
+pillow
+google-generativeai
+python-dotenv
+openai
+slowapi
+httpx
+PyJWT
