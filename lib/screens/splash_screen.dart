@@ -139,7 +139,7 @@ class _SplashScreenState extends State<SplashScreen>
             right: 0,
             child: Center(
               child: Text(
-                'V1.0 Beta',
+                'V1.1.0 Beta',
                 style: TextStyle(
                   color: WaidblickColors.textSecondary,
                   fontSize: 12,
