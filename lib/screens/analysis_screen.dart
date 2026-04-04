@@ -18,6 +18,7 @@ import '../services/vision_api_service.dart';
 import '../services/photo_quality_service.dart';
 import '../services/recognition_service.dart';
 import '../services/settings_service.dart';
+import '../services/streckenblatt_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/age_class_badge.dart';
 import '../widgets/photo_quality_indicator.dart';
@@ -816,6 +817,24 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         ),
       );
       _resetSession();
+    }
+  }
+
+  /// Streckenblatt als PNG teilen
+  Future<void> _shareStreckenblatt(AgeEstimate estimate) async {
+    try {
+      await StreckenblattService.share(
+        context: context,
+        estimate: estimate,
+        region: _currentPosition != null ? _detectedRegion : null,
+        date: _exifDate ?? DateTime.now(),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Teilen fehlgeschlagen: $e')),
+        );
+      }
     }
   }
 
@@ -1857,6 +1876,18 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 color: WaidblickColors.primary),
             label: const Text(
               'Im Lookbook speichern',
+              style: TextStyle(color: WaidblickColors.primary),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: WaidblickColors.primary),
+            ),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => _shareStreckenblatt(estimate),
+            icon: const Icon(Icons.share, color: WaidblickColors.primary),
+            label: const Text(
+              'Streckenblatt teilen',
               style: TextStyle(color: WaidblickColors.primary),
             ),
             style: OutlinedButton.styleFrom(

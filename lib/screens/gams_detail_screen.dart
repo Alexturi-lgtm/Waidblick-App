@@ -2,6 +2,7 @@ import 'dart:io' show File;
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../services/streckenblatt_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -152,6 +153,23 @@ class _GamsDetailScreenState extends State<GamsDetailScreen> {
       final updated = individual.copyWith(geburtsjahrgang: picked);
       await DatabaseService.instance.updateIndividual(updated);
       if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _shareStreckenblatt(GamsIndividual individual) async {
+    try {
+      await StreckenblattService.share(
+        context: context,
+        estimate: individual.currentEstimate,
+        region: individual.region,
+        date: individual.lastSeen,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Teilen fehlgeschlagen: $e')),
+        );
+      }
     }
   }
 
@@ -413,6 +431,11 @@ class _GamsDetailScreenState extends State<GamsDetailScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.share_outlined),
+            tooltip: 'Streckenblatt teilen',
+            onPressed: () => _shareStreckenblatt(individual),
+          ),
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
             tooltip: 'PDF teilen',
             onPressed: () => _sharePdf(individual),
           ),
