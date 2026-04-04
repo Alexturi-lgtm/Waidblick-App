@@ -116,13 +116,23 @@ class HuntingRegulation {
     final age = meanAge.round();
     final isBock = pBock > pGeis;
     if (isBock) {
-      return isBockFreigegeben(age)
-          ? '✅ Freigegeben – Bock, ca. $age Jahre ($regionName)'
-          : '⛔ Nicht freigegeben – Bock unter Mindestabschussalter ($regionName)';
+      if (isBockFreigegeben(age)) {
+        return '✅ Freigegeben – Bock Klasse I, ca. $age Jahre ($regionName)';
+      }
+      // Tirol: Klasse II (Bock 4–7 J.) nach Abschussplan möglich
+      if (region == HuntingRegion.tirol && age >= 4) {
+        return '⚠️ Klasse II-Bock, ca. $age Jahre ($regionName) – nach Abschussplan prüfen';
+      }
+      return '⛔ Nicht freigegeben – Bock unter Mindestabschussalter ($regionName)';
     } else {
-      return isGeisFreigegeben(age)
-          ? '✅ Freigegeben – Geiß, ca. $age Jahre ($regionName)'
-          : '⛔ Nicht freigegeben – Geiß unter Mindestabschussalter ($regionName)';
+      if (isGeisFreigegeben(age)) {
+        return '✅ Freigegeben – Geiß Klasse I, ca. $age Jahre ($regionName)';
+      }
+      // Tirol: Klasse II (Geiß 4–9 J.) nach Abschussplan möglich, Schusszeit 1.8–15.12
+      if (region == HuntingRegion.tirol && age >= 4) {
+        return '⚠️ Klasse II-Geiß, ca. $age Jahre ($regionName) – nach Abschussplan prüfen (Schusszeit 1.8–15.12)';
+      }
+      return '⛔ Nicht freigegeben – Geiß unter Mindestabschussalter ($regionName)';
     }
   }
 }

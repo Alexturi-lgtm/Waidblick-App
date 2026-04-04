@@ -88,6 +88,23 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     if (mounted) setState(() => _huntingRegion = region);
   }
 
+  /// Konvertiert den String aus detectRegion() in HuntingRegion-Enum
+  HuntingRegion _regionStringToEnum(String region) {
+    switch (region.toLowerCase()) {
+      case 'tirol':
+      case 'vorarlberg': // Vorarlberg nutzt ähnliches Jagdrecht wie Tirol
+        return HuntingRegion.tirol;
+      case 'steiermark':
+        return HuntingRegion.steiermark;
+      case 'salzburg':
+        return HuntingRegion.salzburg;
+      case 'bayern':
+        return HuntingRegion.bayern;
+      default:
+        return HuntingRegion.other;
+    }
+  }
+
   void _resetSession() {
     setState(() {
       _photos = [];
@@ -200,6 +217,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             if (position != null) {
               _detectedRegion = RegionalData.detectRegion(
                 position.latitude, position.longitude);
+              // HuntingRegion mit GPS-erkannter Region synchronisieren
+              _huntingRegion = _regionStringToEnum(_detectedRegion);
             }
           });
         }

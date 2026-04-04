@@ -18,6 +18,8 @@ class VisionApiService {
     try {
       final request = http.MultipartRequest(
           'POST', Uri.parse('$backendUrl/analyze'));
+      // ngrok: ohne diesen Header liefert ngrok HTML statt JSON
+      request.headers.addAll({'ngrok-skip-browser-warning': 'true'});
       request.fields['wildart_hint'] = wildartHint;
       request.fields['region'] = region;
       request.files.add(http.MultipartFile.fromBytes(
@@ -27,7 +29,7 @@ class VisionApiService {
       ));
 
       final response =
-          await request.send().timeout(const Duration(seconds: 30));
+          await request.send().timeout(const Duration(seconds: 60));
       final body = await response.stream.bytesToString();
 
       if (response.statusCode != 200) {
@@ -37,8 +39,31 @@ class VisionApiService {
       final json = jsonDecode(body) as Map<String, dynamic>;
       return _parseApiResponse(json, photoCount, previousEstimate);
     } catch (e) {
-      // Fallback: Mock wenn API nicht erreichbar
-      return AgeEstimate.mock(photoCount: photoCount);
+      // Fallback: Mock wenn API nicht erreichbar — Fehlertext sichtbar machen
+      final errorText = e.toString();
+      final mock = AgeEstimate.mock(photoCount: photoCount);
+      return AgeEstimate(
+        pKitz: mock.pKitz,
+        pJung: mock.pJung,
+        pMittel: mock.pMittel,
+        pAlt: mock.pAlt,
+        pSehrAlt: mock.pSehrAlt,
+        pBock: mock.pBock,
+        pGeis: mock.pGeis,
+        pUnsicher: mock.pUnsicher,
+        confidence: mock.confidence,
+        photoCount: mock.photoCount,
+        meanAge: mock.meanAge,
+        stdDev: mock.stdDev,
+        isMale: mock.isMale,
+        wildart: mock.wildart,
+        begruendung: '⚠️ Mock-Schätzung (kein echtes Modell aktiv) — Fehler: $errorText',
+        merkmale: mock.merkmale,
+        scoring: mock.scoring,
+        gewichteterScore: mock.gewichteterScore,
+        geschlechtMerkmal: mock.geschlechtMerkmal,
+        geschlechtSicherheit: mock.geschlechtSicherheit,
+      );
     }
   }
 

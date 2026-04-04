@@ -3,13 +3,21 @@
 class RegionalData {
   /// GPS-Bounding-Box → Region bestimmen
   static String detectRegion(double lat, double lon) {
-    // Reihenfolge wichtig: spezifischere Regionen zuerst
-    if (lat >= 47.4 && lat <= 48.0 && lon >= 10.0 && lon <= 13.0) return 'Tirol';
+    // Reihenfolge wichtig: spezifischere Regionen zuerst, breite Boxen zuletzt
+    // Vorarlberg (kleine Box, westlichstes Bundesland)
+    if (lat >= 47.0 && lat <= 47.6 && lon >= 9.5 && lon <= 10.2) return 'Vorarlberg';
+    // Tirol (vor Bayern, da Bayern-Box Tirol überlappt!)
+    if (lat >= 46.4 && lat <= 48.0 && lon >= 10.0 && lon <= 13.0) return 'Tirol';
+    // Steiermark
     if (lat >= 46.6 && lat <= 47.8 && lon >= 13.0 && lon <= 16.1) return 'Steiermark';
-    if (lat >= 47.0 && lat <= 47.9 && lon >= 12.2 && lon <= 13.8) return 'Salzburg';
-    if (lat >= 47.2 && lat <= 50.6 && lon >= 8.9 && lon <= 13.8) return 'Bayern';
-    if (lat >= 46.4 && lat <= 48.0 && lon >= 9.5 && lon <= 17.2) return 'Österreich';
+    // Salzburg
+    if (lat >= 47.0 && lat <= 48.0 && lon >= 12.2 && lon <= 13.8) return 'Salzburg';
+    // Schweiz (vor Bayern, da Westschweiz/Wallis mit Bayern-Box überlappen kann)
     if (lat >= 45.8 && lat <= 47.9 && lon >= 5.9 && lon <= 10.5) return 'Schweiz';
+    // Bayern (breite Box — erst nach Österreich-Bundesländern prüfen)
+    if (lat >= 47.2 && lat <= 50.6 && lon >= 8.9 && lon <= 13.8) return 'Bayern';
+    // Österreich allgemein
+    if (lat >= 46.4 && lat <= 49.0 && lon >= 9.5 && lon <= 17.2) return 'Österreich';
     return 'Bayern'; // Default
   }
 
