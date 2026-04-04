@@ -26,13 +26,13 @@ class InfoScreen extends StatelessWidget {
                     children: [
                       const Icon(Icons.pets, size: 28),
                       const SizedBox(width: 8),
-                      Text('Über GamsScope',
+                      Text('Über WAIDBLICK',
                           style: theme.textTheme.titleLarge),
                     ],
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'GamsScope hilft Jägerinnen und Jägern, das Alter von Gämsen '
+                    'WAIDBLICK hilft Jägerinnen und Jägern, das Alter von Gämsen '
                     'per Foto zu schätzen. Die KI analysiert morphologische Merkmale '
                     'und gibt eine Wahrscheinlichkeitsverteilung über 5 Altersklassen aus.',
                   ),
@@ -213,7 +213,7 @@ class InfoScreen extends StatelessWidget {
           // Version
           Center(
             child: Text(
-              'GamsScope v1.0.0 — MVP\nKI-Modell: Mock (TFLite folgt)',
+              'WAIDBLICK v1.2.0 — KI-Bildanalyse mit Gemini Vision',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
