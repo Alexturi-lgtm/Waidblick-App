@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'onboarding_screen.dart';
@@ -16,6 +17,7 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _fadeIn;
   late Animation<double> _slideUp;
+  String _version = '';
 
   @override
   void initState() {
@@ -35,6 +37,9 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
     _controller.forward();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = info.version);
+    });
     Future.delayed(const Duration(milliseconds: 2800), () async {
       if (!mounted) return;
       final prefs = await SharedPreferences.getInstance();
@@ -144,7 +149,7 @@ class _SplashScreenState extends State<SplashScreen>
             right: 0,
             child: Center(
               child: Text(
-                'V1.1.0 Beta',
+                _version.isNotEmpty ? 'v$_version' : '',
                 style: TextStyle(
                   color: WaidblickColors.textSecondary,
                   fontSize: 12,

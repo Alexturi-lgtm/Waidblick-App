@@ -1,400 +1,377 @@
 import 'package:flutter/material.dart';
-import '../widgets/age_class_badge.dart';
-import '../models/age_estimate.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../theme/app_theme.dart';
+import 'impressum_screen.dart';
 
-/// Info-Screen: Erklärt Altersklassen, Merkmale und Bedienungshinweise.
-class InfoScreen extends StatelessWidget {
+/// Info-Screen: Wildtier-Steckbriefe, Ansprache-Tipps, Abschussklassen
+class InfoScreen extends StatefulWidget {
   const InfoScreen({super.key});
+
+  @override
+  State<InfoScreen> createState() => _InfoScreenState();
+}
+
+class _InfoScreenState extends State<InfoScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = info.version);
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Info & Anleitung')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Über die App
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.pets, size: 28),
-                      const SizedBox(width: 8),
-                      Text('Über WAIDBLICK',
-                          style: theme.textTheme.titleLarge),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'WAIDBLICK hilft Jägerinnen und Jägern, das Alter von Gämsen '
-                    'per Foto zu schätzen. Die KI analysiert morphologische Merkmale '
-                    'und gibt eine Wahrscheinlichkeitsverteilung über 5 Altersklassen aus.',
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Die Schätzung verbessert sich mit jedem zusätzlichen Foto '
-                    '(Bayessches Update). Mehrere Perspektiven erhöhen die Genauigkeit.',
-                    style: TextStyle(fontStyle: FontStyle.italic),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Kurzanleitung
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.help_outline, size: 24),
-                      const SizedBox(width: 8),
-                      Text('Kurzanleitung',
-                          style: theme.textTheme.titleMedium),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _StepItem(
-                    step: '1',
-                    text: 'Im Tab "Analyse" auf den Kamera-Button tippen.',
-                  ),
-                  _StepItem(
-                    step: '2',
-                    text: 'Foto aus der Galerie wählen oder direkt fotografieren.',
-                  ),
-                  _StepItem(
-                    step: '3',
-                    text:
-                        'Ergebnis prüfen. Für mehr Genauigkeit: "Weiteres Foto" tippen '
-                        '— jedes neue Foto verbessert die Schätzung!',
-                  ),
-                  _StepItem(
-                    step: '4',
-                    text:
-                        'Mit "Im Lookbook speichern" die Analyse ins Lookbook eintragen.',
-                  ),
-                  _StepItem(
-                    step: '5',
-                    text:
-                        'Im Lookbook können Analysen verwaltet und mit '
-                        'neuen Sichtungen angereichert werden.',
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.amber.shade300),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.lightbulb, color: Colors.amber),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Mehr Fotos = bessere Genauigkeit!\n'
-                            'Optimal: Seitenaufnahme in gutem Licht.',
-                            style: TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Perspektiven-Gewichtung
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Perspektiven & Qualität',
-                      style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 12),
-                  const Text(
-                      'Das System gewichtet Fotos je nach Perspektive:'),
-                  const SizedBox(height: 8),
-                  _PerspRow(icon: Icons.arrow_back, label: 'Seitenaufnahme', weight: '100%', best: true),
-                  _PerspRow(icon: Icons.rotate_right, label: 'Halbseitig', weight: '75%'),
-                  _PerspRow(icon: Icons.face, label: 'Frontalaufnahme', weight: '50%'),
-                  _PerspRow(icon: Icons.arrow_forward, label: 'Hintenaufnahme', weight: '35%'),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Altersklassen
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Altersklassen', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 12),
-                  ..._ageClassData.map(
-                    (data) => _AgeClassInfo(
-                      ageClass: data.ageClass,
-                      age: data.age,
-                      description: data.description,
-                      features: data.features,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Analysierte Merkmale
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Analysierte Merkmale',
-                      style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  const Text(
-                      'Die KI bewertet folgende morphologische Merkmale:'),
-                  const SizedBox(height: 12),
-                  ..._featureDescriptions.map(
-                    (f) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.lens,
-                              size: 8, color: Colors.grey),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: RichText(
-                              text: TextSpan(
-                                style: DefaultTextStyle.of(context).style,
-                                children: [
-                                  TextSpan(
-                                    text: '${f.$1}: ',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                  TextSpan(text: f.$2),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Version
-          Center(
-            child: Text(
-              'WAIDBLICK v1.2.0 — KI-Bildanalyse mit Gemini Vision',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade500,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-}
-
-// --- Hilfsdaten ---
-
-class _AgeClassEntry {
-  final AgeClass ageClass;
-  final String age;
-  final String description;
-  final List<String> features;
-  const _AgeClassEntry(this.ageClass, this.age, this.description, this.features);
-}
-
-const _ageClassData = [
-  _AgeClassEntry(
-    AgeClass.kitz,
-    '0–1 Jahr',
-    'Im ersten Lebensjahr. Kleiner Körperbau, helles Fell.',
-    ['Heller Zügel-Kontrast', 'Glänzendes Fell', 'Kleiner Körper', 'Keine Hornbiegung'],
-  ),
-  _AgeClassEntry(
-    AgeClass.jung,
-    '1–3 Jahre',
-    'Jährling bis Zweijähriger. Schlank, voll entwickelte Proportionen.',
-    ['Noch deutlicher Zügel-Kontrast', 'Schlanke Flanken', 'Gerade Rückenlinie', 'Kurze Hörner'],
-  ),
-  _AgeClassEntry(
-    AgeClass.mittel,
-    '3–7 Jahre',
-    'Mittleres Alter. Vollständig entwickelt, gute Konstitution.',
-    ['Mittlerer Kontrast', 'Normale Flanken', 'Gerade bis leicht konkave Linie', 'Mittlere Hornlänge'],
-  ),
-  _AgeClassEntry(
-    AgeClass.alt,
-    '7–12 Jahre',
-    'Alter Bock / alte Geis. Sichtbare Altersmerkmale.',
-    ['Schwacher Zügel-Kontrast', 'Leicht eingefallene Flanken', 'Konkave Rückenlinie', 'Stark gebogene Hörner'],
-  ),
-  _AgeClassEntry(
-    AgeClass.sehrAlt,
-    '>12 Jahre',
-    'Sehr alte Tiere. Deutliche Abnutzungserscheinungen.',
-    ['Kein Zügel-Kontrast', 'Stark eingefallene Flanken', 'Deutlich konkave Linie', 'Sehr starke Hornbiegung', 'Steife Bewegung'],
-  ),
-];
-
-const _featureDescriptions = [
-  ('Zügel-Kontrast', 'Kontrast des hellen Abzeichens um die Schnauze. Hoch = jung, niedrig = alt.'),
-  ('Flanken eingefallen', 'Hohlheit der Flankenpartie. Stark eingefallen = hohes Alter.'),
-  ('Rückenlinie konkav', 'Durchhängen der Rückenlinie. Konkav = alt/sehr alt.'),
-  ('Träger-Masse', 'Muskelmasse im Schulterbereich. Bei Böcken und alten Tieren erhöht.'),
-  ('Krucken-Häkel', 'Biegungsgrad der Hornspitzen. Stark gebogen = alt/sehr alt.'),
-  ('Körperschwerpunkt vorne', 'Vorverlagerung durch Muskelschwund am Hinterteil = alt.'),
-  ('Fellglanz', 'Qualität und Glanz des Fells. Hoch = jung und gesund.'),
-  ('Bewegungssteifheit', 'Steifigkeit beim Gehen. Stark = alt/sehr alt.'),
-];
-
-// --- Helper Widgets ---
-
-class _StepItem extends StatelessWidget {
-  final String step;
-  final String text;
-  const _StepItem({required this.step, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 12,
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            child: Text(step,
-                style: const TextStyle(fontSize: 11, color: Colors.white)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: Text(text)),
-        ],
-      ),
-    );
-  }
-}
-
-class _PerspRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String weight;
-  final bool best;
-  const _PerspRow(
-      {required this.icon,
-      required this.label,
-      required this.weight,
-      this.best = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: Colors.grey.shade700),
-          const SizedBox(width: 8),
-          Expanded(child: Text(label)),
-          Text(
-            weight,
-            style: TextStyle(
-              fontWeight: best ? FontWeight.bold : FontWeight.normal,
-              color: best ? Colors.green : null,
-            ),
-          ),
-          if (best) ...[
-            const SizedBox(width: 4),
-            const Icon(Icons.star, size: 14, color: Colors.amber),
+      appBar: AppBar(
+        title: const Text('Info & Wildtiere'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Gämse'),
+            Tab(text: 'Rehwild'),
+            Tab(text: 'Rotwild'),
           ],
+        ),
+      ),
+      body: Column(
+        children: [
+          // App-Beschreibung (2 Sätze)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Text(
+              'WAIDBLICK erkennt Gämse, Rehwild und Rotwild per KI-Bildanalyse. '
+              'Altersklasse, Geschlecht und Abschussfreigabe auf einen Blick.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: WaidblickColors.textSecondary,
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          // Tabs
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: const [
+                _GamseTab(),
+                _RehwildTab(),
+                _RotwildTab(),
+              ],
+            ),
+          ),
+          // Footer
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  _version.isNotEmpty ? 'v$_version  •  ' : '',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ImpressumScreen()),
+                  ),
+                  child: Text(
+                    'Impressum',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: WaidblickColors.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _AgeClassInfo extends StatelessWidget {
-  final AgeClass ageClass;
-  final String age;
-  final String description;
-  final List<String> features;
+// ─── GÄMSE TAB ───────────────────────────────────────────────────────────────
 
-  const _AgeClassInfo({
-    required this.ageClass,
-    required this.age,
-    required this.description,
-    required this.features,
-  });
+class _GamseTab extends StatelessWidget {
+  const _GamseTab();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              AgeClassBadge(ageClass: ageClass),
-              const SizedBox(width: 8),
-              Text(age,
-                  style: const TextStyle(
-                      fontSize: 12, color: Colors.grey)),
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        _SectionCard(
+          title: '🐾 Steckbrief',
+          child: const Text(
+            'Gämse (Rupicapra rupicapra) — Hochgebirgsbewohner der Alpen.\n'
+            'Bock: bis 40 kg, Krucken nach hinten gebogen.\n'
+            'Geiß: kleiner, Krucken feiner. Saisonales Haarkleid.',
+            style: TextStyle(fontSize: 13, height: 1.5),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _SectionCard(
+          title: '🎯 Ansprache-Tipps',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              _Bullet('Krucken-Form: jung = gerade, alt = stark gebogen'),
+              _Bullet('Rückenlinie: gerade = jung, konkav = alt'),
+              _Bullet('Flanken: prall = jung, eingefallen = alt'),
+              _Bullet('Zügel-Kontrast: scharf = jung, verwaschen = alt'),
+              _Bullet('Bewegunssteifheit: sichtbar = hohes Alter'),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(description, style: const TextStyle(fontSize: 13)),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            children: features
-                .map(
-                  (f) => Chip(
-                    label: Text(f,
-                        style: const TextStyle(fontSize: 11)),
-                    padding: EdgeInsets.zero,
-                    materialTapTargetSize:
-                        MaterialTapTargetSize.shrinkWrap,
-                  ),
-                )
-                .toList(),
+        ),
+        const SizedBox(height: 8),
+        _SectionCard(
+          title: '📋 Abschussklassen (Bayern)',
+          child: _buildGamsTable(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGamsTable(BuildContext context) {
+    return _CompactTable(
+      headers: const ['Klasse', 'Geschlecht', 'Alter'],
+      rows: const [
+        ['Kl. II', 'Bock', '1–7 J (Schon)'],
+        ['Kl. I', 'Bock', 'ab 8 J (Ernte)'],
+      ],
+    );
+  }
+}
+
+// ─── REHWILD TAB ─────────────────────────────────────────────────────────────
+
+class _RehwildTab extends StatelessWidget {
+  const _RehwildTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        _SectionCard(
+          title: '🦌 Steckbrief',
+          child: const Text(
+            'Rehwild (Capreolus capreolus) — häufigstes Schalenwild.\n'
+            'Bock: Geweih mit 3–6 Enden, Schmalreh ohne Gehörn.\n'
+            'Sommerfell: rotbraun. Winterfell: graubraun.',
+            style: TextStyle(fontSize: 13, height: 1.5),
           ),
+        ),
+        const SizedBox(height: 8),
+        _SectionCard(
+          title: '🎯 Ansprache-Tipps',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              _Bullet('Kitz: Fleckenkleid bis Herbst, hochläufig'),
+              _Bullet('Jährling: schlank, Geweih klein/einfach'),
+              _Bullet('Kl.II: Mittelbock, normale Proportionen'),
+              _Bullet('Kl.I: Senkrücken, starkes Blatt, Gamsbart'),
+              _Bullet('Schmalreh: weiblich, kein Gehörn'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        _SectionCard(
+          title: '📋 Abschussklassen',
+          child: _CompactTable(
+            headers: const ['Klasse', 'Bezeichnung', 'Alter', 'Merkmal'],
+            rows: const [
+              ['Kitz', 'Kitz', '0–1 J', 'Fleckenkleid'],
+              ['Jährling', 'Schmalreh', '1–2 J', 'Hochläufig'],
+              ['Kl. II', 'Mittelbock', '2–5 J', 'Schonklasse'],
+              ['Kl. I', 'Alter Bock', '5+ J', 'Senkrücken'],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── ROTWILD TAB ─────────────────────────────────────────────────────────────
+
+class _RotwildTab extends StatelessWidget {
+  const _RotwildTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        _SectionCard(
+          title: '🦌 Steckbrief',
+          child: const Text(
+            'Rotwild (Cervus elaphus) — größtes heimisches Schalenwild.\n'
+            'Hirsch: imposantes Geweih, Brunftmähne. Tiefland > Alpenraum.\n'
+            'Kalb: Fleckenkleid, Schmaltier: erste Brunftbeteiligung.',
+            style: TextStyle(fontSize: 13, height: 1.5),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _SectionCard(
+          title: '🎯 Ansprache-Tipps',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              _Bullet('Kalb: Fleckenkleid, klein, eng bei Tier'),
+              _Bullet('Spießer: erste Geweihstangen ohne Enden'),
+              _Bullet('Kl.III: junger Hirsch, Geweih im Aufbau'),
+              _Bullet('Kl.II: mittlerer Hirsch, gute Masse'),
+              _Bullet('Kl.I: reifer Hirsch, breite Stangen, Perlen'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        _SectionCard(
+          title: '📋 Abschussklassen',
+          child: _CompactTable(
+            headers: const ['Klasse', 'Alter', 'Merkmal'],
+            rows: const [
+              ['Kalb', '0–1 J', 'Fleckenkleid'],
+              ['Spießer', '1–2 J', 'Erste Entwicklung'],
+              ['Kl. III', '2–4 J', 'Jugendhirsch'],
+              ['Kl. II', '4–8 J', 'Mittelalter (Schon)'],
+              ['Kl. I', 'ab 8 J', 'Ernte, reifer Hirsch'],
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.amber.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.amber.shade700.withOpacity(0.4)),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.amber, size: 16),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Tipp: Tiefland-Hirsche deutlich größer als Alpenraum!',
+                  style: TextStyle(fontSize: 12, color: Colors.amber),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── HELPER WIDGETS ──────────────────────────────────────────────────────────
+
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _SectionCard({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 14)),
+            const SizedBox(height: 8),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Bullet extends StatelessWidget {
+  final String text;
+  const _Bullet(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('• ', style: TextStyle(fontSize: 13)),
+          Expanded(
+              child: Text(text, style: const TextStyle(fontSize: 13))),
         ],
+      ),
+    );
+  }
+}
+
+class _CompactTable extends StatelessWidget {
+  final List<String> headers;
+  final List<List<String>> rows;
+
+  const _CompactTable({required this.headers, required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    return Table(
+      border: TableBorder.all(
+        color: Colors.grey.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      defaultColumnWidth: const FlexColumnWidth(),
+      children: [
+        TableRow(
+          decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1)),
+          children: headers
+              .map((h) => _cell(h, bold: true, header: true))
+              .toList(),
+        ),
+        ...rows.map(
+          (row) => TableRow(
+            children: row.map((c) => _cell(c)).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _cell(String text, {bool bold = false, bool header = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: header ? 11 : 12,
+          fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+          color: header ? Colors.grey.shade600 : null,
+        ),
       ),
     );
   }
