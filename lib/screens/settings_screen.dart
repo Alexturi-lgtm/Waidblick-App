@@ -33,9 +33,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  // keep old name for compatibility
-  Future<void> _loadRegion() => _loadSettings();
-
   Future<void> _onRegionChanged(HuntingRegion? newRegion) async {
     if (newRegion == null) return;
     await SettingsService.setRegion(newRegion);

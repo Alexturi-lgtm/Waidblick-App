@@ -21,7 +21,7 @@ import '../widgets/age_class_badge.dart';
 import '../widgets/photo_quality_indicator.dart';
 import '../widgets/probability_bars.dart';
 import 'photo_guide_screen.dart';
-import 'settings_screen.dart';
+// settings_screen.dart used via HomeScreen tab
 
 /// Analyse-Screen: Foto aufnehmen/auswählen → ML → Bayes → Ergebnis anzeigen
 class AnalysisScreen extends StatefulWidget {
@@ -45,19 +45,31 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   Position? _currentPosition;
   AgeEstimate? _latestVisionEstimate; // Letzte Vision-API Schätzung
   String _wildartHint = 'auto'; // 'auto', 'gams', 'rehwild', 'rotwild'
-  int _multiPhotoCount = 0; // Anzahl ausgewählter Fotos
+  // _multiPhotoCount entfernt (wird nur intern gezählt, kein UI-Feedback nötig)
 
-  // Zufallsnamen-Liste
-  static const _gamsNamen = [
-    'Brunft', 'Luise', 'Hans', 'Kleo', 'Berta', 'Franz', 'Alma', 'Kurt',
-    'Heidi', 'Anton', 'Rosa', 'Sepp', 'Gretl', 'Maxl', 'Toni', 'Liesl',
-    'Wastl', 'Zenzi', 'Moidl', 'Hias', 'Vroni', 'Rupert', 'Edeltraud', 'Karl',
-    'Waldi', 'Blitz', 'Silber', 'Grau', 'Fleck', 'Stolz', 'Bergfried', 'Adler',
-    'Gipfl', 'Almrausch', 'Wetterhorn', 'Fels', 'Sturm', 'Echo', 'Nebel', 'Schnee',
+  // Zufallsname-System: 40 Adjektive × 40 Namen = 1600 Kombinationen
+  static const _adjektive = [
+    'Alter', 'Wilder', 'Flinker', 'Sturer', 'Junger', 'Großer', 'Kleiner', 'Starker',
+    'Schlauer', 'Frecher', 'Grauer', 'Schwarzer', 'Weißer', 'Brauner', 'Stolzer',
+    'Fetter', 'Müder', 'Wacher', 'Schneller', 'Langsamer', 'Einsamer', 'Kluger',
+    'Mutiger', 'Scheuer', 'Ruhiger', 'Lauter', 'Stiller', 'Listiger', 'Treuer',
+    'Wilder', 'Zotteliger', 'Struppiger', 'Flinker', 'Tapsiger', 'Würdiger',
+    'Grimmiger', 'Sanfter', 'Neugieriger', 'Edler', 'Alter',
+  ];
+
+  static const _namen = [
+    'Harry', 'Emma', 'Bruno', 'Liesl', 'Franz', 'Gretl', 'Hubert', 'Berta',
+    'Wastl', 'Vroni', 'Klaus', 'Rosl', 'Sepp', 'Hilde', 'Hansl', 'Frieda',
+    'Max', 'Paula', 'Georg', 'Maria', 'Konrad', 'Trudi', 'Wilhelm', 'Hedwig',
+    'Anton', 'Erna', 'Ludwig', 'Ilse', 'Rudolf', 'Gerda', 'Baldur', 'Waltraud',
+    'Egon', 'Elfriede', 'Horst', 'Ingrid', 'Günter', 'Sieglinde', 'Oskar', 'Mathilde',
   ];
 
   String _randomGamsName() {
-    return _gamsNamen[Random().nextInt(_gamsNamen.length)];
+    final rng = Random();
+    final adj = _adjektive[rng.nextInt(_adjektive.length)];
+    final name = _namen[rng.nextInt(_namen.length)];
+    return '$adj $name';
   }
 
   @override
@@ -90,7 +102,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       imageQuality: 85,
     );
     if (pickedList.isEmpty) return;
-    setState(() => _multiPhotoCount = pickedList.length);
+    // Anzahl der ausgewählten Fotos
     for (final file in pickedList) {
       await _analyzeXFile(file);
     }
@@ -104,7 +116,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       imageQuality: 85,
     );
     if (picked == null) return;
-    setState(() => _multiPhotoCount = 0);
     await _analyzeXFile(picked);
   }
 
@@ -524,51 +535,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 
   /// Wildart-Auswahl Button
-  Widget _wildartBtn(String value, IconData icon, String label) {
-    final isSelected = _wildartHint == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _wildartHint = value),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? WaidblickColors.primary.withOpacity(0.18)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected ? WaidblickColors.primary : WaidblickColors.border,
-              width: isSelected ? 1.5 : 1,
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon,
-                  size: 16,
-                  color: isSelected
-                      ? WaidblickColors.primary
-                      : WaidblickColors.textSecondary),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight:
-                      isSelected ? FontWeight.w700 : FontWeight.normal,
-                  color: isSelected
-                      ? WaidblickColors.primary
-                      : WaidblickColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   /// Scoring-Matrix Card: zeigt die 6 Alters-Merkmale mit 1–5 Pkt Bewertung
   Widget _buildScoringCard(AgeEstimate estimate) {
     final scoring = estimate.scoring!;
@@ -744,148 +710,242 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     }
   }
 
+  /// Wildart-Hintergrundbild je nach Auswahl
+  String _wildartBg() {
+    switch (_wildartHint) {
+      case 'gams':    return 'assets/images/gams_bg.jpg';
+      case 'rehwild': return 'assets/images/waidblick-bg.jpg';
+      case 'rotwild': return 'assets/images/waidblick-bg.jpg';
+      default:        return 'assets/images/gams_bg.jpg';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasPhotos = _photos.isNotEmpty;
-    // Vision-API Schätzung hat Vorrang wenn verfügbar (echte KI statt Mock)
     final estimate = _latestVisionEstimate ?? _engine.current;
     final theme = Theme.of(context);
+    final accent = _wildartAccent();
 
     return Scaffold(
       backgroundColor: WaidblickColors.background,
       body: _isAnalyzing
           ? _buildAnalyzingState()
-          : CustomScrollView(
-              slivers: [
-                // ── Hero SliverAppBar ──────────────────────────────────
-                SliverAppBar(
-                  expandedHeight: 200,
-                  pinned: true,
-                  backgroundColor: WaidblickColors.background,
-                  flexibleSpace: FlexibleSpaceBar(
-                    background: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Hintergrundbild
-                        Image.asset(
-                          'assets/images/waidblick-bg.jpg',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Color(0xFF0A1A0F),
-                                  Color(0xFF1A1200),
-                                  Color(0xFF141414),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Gradient overlay
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.black.withOpacity(0.3),
-                                Colors.black.withOpacity(0.75),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // Titel unten
-                        const Positioned(
-                          bottom: 20,
-                          left: 0,
-                          right: 0,
-                          child: Column(
-                            children: [
-                              Text(
-                                'WAIDBLICK',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: WaidblickColors.primary,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 6,
-                                ),
-                              ),
-                              SizedBox(height: 6),
-                              Text(
-                                'Wildtier-Analyse',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: WaidblickColors.textPrimary,
-                                  fontSize: 13,
-                                  fontStyle: FontStyle.italic,
-                                  letterSpacing: 1.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+          : Stack(
+              children: [
+                // ── Vollbild-Hintergrund ──────────────────────────────
+                Positioned.fill(
+                  child: Image.asset(
+                    _wildartBg(),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: const Color(0xFF0A0A0A),
                     ),
                   ),
-                  actions: [
-                    if (_currentPosition != null)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-                        child: Icon(Icons.location_on, color: Colors.green, size: 20),
-                      ),
-                    if (hasPhotos)
-                      IconButton(
-                        icon: const Icon(Icons.refresh),
-                        tooltip: 'Neue Session',
-                        onPressed: _resetSession,
-                      ),
-                    IconButton(
-                      icon: const Icon(Icons.help_outline_rounded),
-                      tooltip: 'Foto-Anleitung',
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const PhotoGuideScreen()),
+                ),
+                // Gradient overlay (oben transparent → unten fast schwarz)
+                Positioned.fill(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: [0.0, 0.3, 0.55, 0.78, 1.0],
+                        colors: [
+                          Color(0x800A0A0A),
+                          Color(0x1A0A0A0A),
+                          Color(0x330A0A0A),
+                          Color(0xE50A0A0A),
+                          Color(0xFF0A0A0A),
+                        ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.settings),
-                      tooltip: 'Einstellungen',
-                      onPressed: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                        );
-                        _loadRegion();
-                      },
-                    ),
-                  ],
+                  ),
                 ),
 
-                // ── Content ───────────────────────────────────────────
-                SliverToBoxAdapter(
-                  child: !hasPhotos
-                      ? _buildEmptyState()
-                      : _buildResultView(estimate, theme),
+                // ── Haupt-Content ─────────────────────────────────────
+                SafeArea(
+                  bottom: false,
+                  child: Column(
+                    children: [
+                      // TopBar: WAIDBLICK + Wildart-Tabs
+                      _buildTopBar(accent),
+
+                      // Body
+                      Expanded(
+                        child: !hasPhotos
+                            ? _buildEmptyState()
+                            : _buildResultScrollable(estimate, theme),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-      floatingActionButton: !_isAnalyzing
+      // FAB nur im Result-View (nicht im Empty State)
+      floatingActionButton: (!_isAnalyzing && hasPhotos)
           ? FloatingActionButton.extended(
               onPressed: _showPickerDialog,
               backgroundColor: WaidblickColors.primary,
               foregroundColor: Colors.black,
               icon: const Icon(Icons.add_a_photo),
-              label: Text(
-                hasPhotos ? 'WEITERES FOTO' : 'FOTO ANALYSIEREN',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+              label: const Text(
+                'WEITERES FOTO',
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
             )
           : null,
     );
+  }
+
+  /// TopBar: Logo + Subtitle + Wildart-Tabs (wie Web-Version)
+  Widget _buildTopBar(Color accent) {
+    return Container(
+      color: const Color(0x8C141414),
+      child: ClipRect(
+        child: Container(
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: Color(0x0FFFFFFF), width: 1),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Logo-Zeile
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 16, 0),
+                child: Row(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'WAIDBLICK',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 4,
+                            color: accent,
+                          ),
+                        ),
+                        Text(
+                          'WILDTIER-ANALYSE',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: const Color(0xFFF5F0E8).withOpacity(0.3),
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    if (_currentPosition != null)
+                      const Icon(Icons.location_on, color: Color(0xFF4ade80), size: 18),
+                    IconButton(
+                      icon: Icon(Icons.refresh,
+                          color: const Color(0xFFF5F0E8).withOpacity(0.5),
+                          size: 20),
+                      tooltip: 'Neue Session',
+                      onPressed: _resetSession,
+                    ),
+                  ],
+                ),
+              ),
+              // Wildart-Tabs Zeile
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                child: Row(
+                  children: [
+                    _wildartTabWeb('auto', null, '🔍', 'Auto'),
+                    const SizedBox(width: 6),
+                    _wildartTabWeb('gams', 'assets/icons/gams.jpg', null, 'Gams'),
+                    const SizedBox(width: 6),
+                    _wildartTabWeb('rehwild', 'assets/icons/rehwild.jpg', null, 'Rehwild'),
+                    const SizedBox(width: 6),
+                    _wildartTabWeb('rotwild', 'assets/icons/rotwild.jpg', null, 'Rotwild'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Einzelner Wildart-Tab (Web-Style: Icon/Bild oben, Label unten)
+  Widget _wildartTabWeb(String value, String? imagePath, String? emoji, String label) {
+    final isSelected = _wildartHint == value;
+    final accent = _wildartAccentFor(value);
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _wildartHint = value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          decoration: BoxDecoration(
+            color: isSelected ? accent.withOpacity(0.12) : const Color(0xFF252525),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? accent : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (imagePath != null)
+                Opacity(
+                  opacity: isSelected ? 1.0 : 0.45,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(5),
+                    child: Image.asset(
+                      imagePath,
+                      width: 30, height: 30,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.terrain,
+                        size: 22,
+                        color: isSelected ? accent : const Color(0xFFF5F0E8).withOpacity(0.45),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Opacity(
+                  opacity: isSelected ? 1.0 : 0.45,
+                  child: Text(emoji!, style: const TextStyle(fontSize: 22, height: 1.2)),
+                ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                  color: isSelected ? accent : const Color(0xFFF5F0E8).withOpacity(0.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _wildartAccentFor(String value) {
+    switch (value) {
+      case 'gams':    return const Color(0xFFF5A623);
+      case 'rehwild': return const Color(0xFF5D9E6E);
+      case 'rotwild': return const Color(0xFFB5451B);
+      default:        return const Color(0xFFAAAAAA);
+    }
+  }
+
+  /// Result-View als scrollbarer Container (ohne eigene AppBar)
+  Widget _buildResultScrollable(AgeEstimate estimate, ThemeData theme) {
+    return _buildResultView(estimate, theme);
   }
 
   Widget _buildAnalyzingState() {
@@ -931,108 +991,188 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     );
   }
 
+  /// Wildart-Farbe basierend auf Auswahl
+  Color _wildartAccent() {
+    switch (_wildartHint) {
+      case 'gams':    return const Color(0xFFF5A623);
+      case 'rehwild': return const Color(0xFF5D9E6E);
+      case 'rotwild': return const Color(0xFFB5451B);
+      default:        return const Color(0xFFAAAAAA);
+    }
+  }
+
   Widget _buildEmptyState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 16),
-          // Tierauswahl
-          Container(
-            decoration: BoxDecoration(
-              color: WaidblickColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: WaidblickColors.border),
-            ),
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Wildart',
-                  style: TextStyle(
-                    color: WaidblickColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1,
+    final accent = _wildartAccent();
+
+    return Stack(
+      children: [
+        // ── Scan Frame (zentral) ──────────────────────────────────────
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Goldener Scan-Rahmen
+              GestureDetector(
+                onTap: _showPickerDialog,
+                child: SizedBox(
+                  width: 220,
+                  height: 220,
+                  child: CustomPaint(
+                    painter: _ScanFramePainter(accent),
+                    child: const Center(
+                      child: Icon(
+                        Icons.add_a_photo_outlined,
+                        color: Colors.white24,
+                        size: 48,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Tippen zum Foto wählen',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: const Color(0xFFF5F0E8).withOpacity(0.5),
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ── Bottom Sheet: Kamera-Button + Buttons ─────────────────────
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xF7141414),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              border: Border(
+                top: BorderSide(color: Color(0x14FFFFFF), width: 1),
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle
+                Container(
+                  width: 36, height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+
+                // "FOTO AUFNEHMEN" Label + großer Kamera-Button
+                Text(
+                  'FOTO AUFNEHMEN',
+                  style: TextStyle(
+                    fontSize: 10,
+                    letterSpacing: 2,
+                    color: const Color(0xFFF5F0E8).withOpacity(0.35),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: _showPickerDialog,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Äußerer Ring
+                      Container(
+                        width: 80, height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: accent.withOpacity(0.25),
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      // Hauptbutton
+                      Container(
+                        width: 68, height: 68,
+                        decoration: BoxDecoration(
+                          color: accent,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: accent.withOpacity(0.35),
+                              blurRadius: 28,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.black,
+                          size: 28,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Kamera + Anleitung Buttons
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _wildartBtn('auto', Icons.auto_fix_high, 'Auto'),
-                    const SizedBox(width: 6),
-                    _wildartBtn('gams', Icons.terrain, 'Gämse'),
-                    const SizedBox(width: 6),
-                    _wildartBtn('rehwild', Icons.forest, 'Reh'),
-                    const SizedBox(width: 6),
-                    _wildartBtn('rotwild', Icons.park, 'Rotwild'),
+                    _ghostButton(
+                      icon: Icons.photo_camera_outlined,
+                      label: 'Kamera',
+                      onTap: () => _pickPhoto(ImageSource.camera),
+                    ),
+                    const SizedBox(width: 10),
+                    _ghostButton(
+                      icon: Icons.menu_book_outlined,
+                      label: 'Anleitung',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const PhotoGuideScreen()),
+                      ),
+                    ),
                   ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          // Premium Upload-CTA
-          Container(
-            height: 160,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: WaidblickColors.primary.withOpacity(0.5),
-                width: 1.5,
-              ),
-              color: WaidblickColors.surface,
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: _showPickerDialog,
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.add_a_photo_outlined,
-                      color: WaidblickColors.primary,
-                      size: 52,
-                    ),
-                    SizedBox(height: 14),
-                    Text(
-                      'WILDTIER FOTOGRAFIEREN',
-                      style: TextStyle(
-                        color: WaidblickColors.primary,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 2,
-                        fontSize: 13,
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      'oder Foto aus Galerie wählen',
-                      style: TextStyle(
-                        color: WaidblickColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _ghostButton({required IconData icon, required String label, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.12)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: const Color(0xFFF5F0E8).withOpacity(0.7)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: const Color(0xFFF5F0E8).withOpacity(0.7),
+                fontWeight: FontWeight.w500,
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Mehr Fotos = höhere Genauigkeit',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: WaidblickColors.textSecondary.withOpacity(0.8),
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-          const SizedBox(height: 80),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1470,4 +1610,52 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       ),
     );
   }
+}
+
+/// CustomPainter: Goldener Scan-Rahmen mit Ecken (wie Web scan-frame)
+class _ScanFramePainter extends CustomPainter {
+  final Color accent;
+  const _ScanFramePainter(this.accent);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = accent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.square;
+
+    const cornerLen = 22.0;
+    const r = 20.0; // border-radius
+    final w = size.width;
+    final h = size.height;
+
+    // Hauptrahmen (leicht transparent)
+    final framePaint = Paint()
+      ..color = accent.withOpacity(0.35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, w, h),
+      const Radius.circular(r),
+    );
+    canvas.drawRRect(rrect, framePaint);
+
+    // Ecken (solide, gold)
+    // oben-links
+    canvas.drawLine(Offset(0, r), Offset(0, r + cornerLen), paint);
+    canvas.drawLine(Offset(r, 0), Offset(r + cornerLen, 0), paint);
+    // oben-rechts
+    canvas.drawLine(Offset(w, r), Offset(w, r + cornerLen), paint);
+    canvas.drawLine(Offset(w - r, 0), Offset(w - r - cornerLen, 0), paint);
+    // unten-links
+    canvas.drawLine(Offset(0, h - r), Offset(0, h - r - cornerLen), paint);
+    canvas.drawLine(Offset(r, h), Offset(r + cornerLen, h), paint);
+    // unten-rechts
+    canvas.drawLine(Offset(w, h - r), Offset(w, h - r - cornerLen), paint);
+    canvas.drawLine(Offset(w - r, h), Offset(w - r - cornerLen, h), paint);
+  }
+
+  @override
+  bool shouldRepaint(_ScanFramePainter old) => old.accent != accent;
 }
