@@ -7,7 +7,7 @@ class PaymentService {
   // Alex muss auf revenuecat.com Account erstellen + API Key holen
   static const String _revenueCatApiKey = String.fromEnvironment(
     'REVENUECAT_API_KEY',
-    defaultValue: 'test_LDYuPtXOugEoyNkUsyFiwKHsIJK',
+    defaultValue: 'appl_xAlJiDlFeBlKCpXtJmYTBqlbKuN',
   );
 
   static const String _monthlyProductId = 'monthly';
