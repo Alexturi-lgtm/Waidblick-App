@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../theme/app_theme.dart';
 
 /// Paywall-Screen: Freemium-Limit + Beta-Zugang per E-Mail-Whitelist
@@ -16,11 +18,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
   final _emailController = TextEditingController();
   bool _checkingEmail = false;
 
-  // Hardcodierte Beta-Whitelist (später auf Hetzner-Backend auslagern)
-  static const List<String> _betaWhitelist = [
-    'alex.turi@hotmail.de',
-    'elena@example.com',
-  ];
+  static const String _backendUrl = 'http://204.168.216.110';
 
   @override
   void dispose() {
@@ -30,34 +28,67 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   Future<void> _checkBetaAccess() async {
     final email = _emailController.text.trim().toLowerCase();
+    if (email.isEmpty) return;
     setState(() => _checkingEmail = true);
 
-    await Future.delayed(const Duration(milliseconds: 600)); // UX-Delay
+    try {
+      final response = await http.post(
+        Uri.parse('$_backendUrl/check-beta'),
+        body: {'email': email},
+      ).timeout(const Duration(seconds: 10));
 
-    final isWhitelisted = _betaWhitelist.contains(email);
+      if (!mounted) return;
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final status = data['status'] as String;
 
-    if (isWhitelisted) {
-      // Premium für 30 Tage setzen
-      final prefs = await SharedPreferences.getInstance();
-      final expiryMs =
-          DateTime.now().add(const Duration(days: 30)).millisecondsSinceEpoch;
-      await prefs.setBool('premium_active', true);
-      await prefs.setInt('premium_expiry_ms', expiryMs);
-
+      if (status == 'granted') {
+        final expires = data['expires'] as String;
+        final prefs = await SharedPreferences.getInstance();
+        final expiryDate = DateTime.parse(expires);
+        await prefs.setBool('premium_active', true);
+        await prefs.setInt('premium_expiry_ms', expiryDate.millisecondsSinceEpoch);
+        if (mounted) {
+          setState(() => _checkingEmail = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Beta-Zugang aktiv bis $expires. Waidmannsheil!'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) Navigator.pop(context);
+        }
+        return;
+      } else if (status == 'expired') {
+        final expires = data['expires'] as String;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Beta-Zugang abgelaufen am $expires.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          setState(() => _checkingEmail = false);
+        }
+        return;
+      }
+    } catch (e) {
       if (mounted) {
-        setState(() => _checkingEmail = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Beta-Zugang aktiviert! Viel Waidmannsheil.'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+            content: Text('❌ Verbindungsfehler. Später nochmal versuchen.'),
+            backgroundColor: Colors.red,
           ),
         );
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) Navigator.pop(context);
+        setState(() => _checkingEmail = false);
       }
-    } else {
-      if (mounted) {
+      return;
+    }
+
+    // status == denied
+    if (mounted) {
+      if (true) {
         setState(() => _checkingEmail = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
