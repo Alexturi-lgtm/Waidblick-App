@@ -1,7 +1,7 @@
 name: waidblick
 description: KI-gestützte Wildtier-Altersbestimmung für Jäger
 publish_to: 'none'
-version: 1.6.1+46
+version: 1.6.2+47
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -27,7 +27,7 @@ dependencies:
   sign_in_with_apple: ^6.1.0
   google_sign_in: ^6.2.1
   crypto: ^3.0.3
-  purchases_flutter: ^7.0.0
+  purchases_flutter: ^6.29.0
 
 dev_dependencies:
   flutter_test:

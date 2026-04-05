@@ -28,6 +28,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Dart Analyze (Fehler frühzeitig erkennen)
+        run: flutter analyze --no-fatal-infos
+
       - name: Setup Ruby & Fastlane
         uses: ruby/setup-ruby@v1
         with:
