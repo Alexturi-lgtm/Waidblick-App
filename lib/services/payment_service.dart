@@ -15,15 +15,17 @@ class PaymentService {
 
   /// RevenueCat initialisieren (in main.dart aufrufen)
   static Future<void> initialize() async {
-    await Purchases.setLogLevel(LogLevel.debug);
-
-    final configuration = PurchasesConfiguration(_revenueCatApiKey);
-    await Purchases.configure(configuration);
-
-    // Supabase User-ID als RevenueCat App-User-ID setzen
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      await Purchases.logIn(user.id);
+    try {
+      await Purchases.setLogLevel(LogLevel.debug);
+      final configuration = PurchasesConfiguration(_revenueCatApiKey);
+      await Purchases.configure(configuration);
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        await Purchases.logIn(user.id);
+      }
+    } catch (e) {
+      // RevenueCat nicht verfügbar — App läuft trotzdem
+      debugPrint('RevenueCat init failed: $e');
     }
   }
 
