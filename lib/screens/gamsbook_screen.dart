@@ -1,7 +1,6 @@
 import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../models/age_estimate.dart';
 import '../models/gams_individual.dart';
@@ -12,7 +11,10 @@ import 'gams_detail_screen.dart';
 
 /// GamsBook — Liste aller bekannten Gams-Individuen
 class GamsbookScreen extends StatefulWidget {
-  const GamsbookScreen({super.key});
+  /// Callback: navigiert zur Analyse-Seite (Tab 0 in HomeScreen)
+  final VoidCallback? onNavigateToAnalysis;
+
+  const GamsbookScreen({super.key, this.onNavigateToAnalysis});
 
   @override
   State<GamsbookScreen> createState() => _GamsbookScreenState();
@@ -20,8 +22,18 @@ class GamsbookScreen extends StatefulWidget {
 
 class _GamsbookScreenState extends State<GamsbookScreen> {
   final _uuid = const Uuid();
-  final _dateFormat = DateFormat('dd.MM.yyyy');
   String _filterWildart = 'alle';
+
+  static const _monthNames = [
+    'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez',
+  ];
+
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = _monthNames[date.month - 1];
+    return '$day. $month ${date.year}';
+  }
 
   List<GamsIndividual> get _allIndividuals =>
       List.from(DatabaseService.instance.individuals);
@@ -172,7 +184,7 @@ class _GamsbookScreenState extends State<GamsbookScreen> {
                       final ind = individuals[index];
                       return _GamsCard(
                         individual: ind,
-                        dateFormat: _dateFormat,
+                        formatDate: _formatDate,
                         onTap: () async {
                           await Navigator.push(
                             context,
@@ -220,22 +232,42 @@ class _GamsbookScreenState extends State<GamsbookScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.menu_book, size: 80, color: WaidblickColors.primary),
-          SizedBox(height: 16),
-          Text(
-            'Noch keine Einträge im Waidbuch.',
-            style: TextStyle(
-                fontSize: 16, color: WaidblickColors.textPrimary),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Analysiere ein Wildtier und speichere es!',
-            style: TextStyle(color: WaidblickColors.textSecondary),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🦌', style: TextStyle(fontSize: 72)),
+            const SizedBox(height: 16),
+            const Text(
+              'Noch keine Analysen gespeichert',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: WaidblickColors.textPrimary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Fotografiere ein Wildtier, lass es von der KI analysieren und speichere es hier.',
+              style: TextStyle(
+                  fontSize: 13, color: WaidblickColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: widget.onNavigateToAnalysis,
+              icon: const Icon(Icons.photo_camera_outlined),
+              label: const Text('Mach deine erste Analyse!'),
+              style: FilledButton.styleFrom(
+                backgroundColor: WaidblickColors.primary,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 12),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -243,13 +275,13 @@ class _GamsbookScreenState extends State<GamsbookScreen> {
 
 class _GamsCard extends StatelessWidget {
   final GamsIndividual individual;
-  final DateFormat dateFormat;
+  final String Function(DateTime) formatDate;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
   const _GamsCard({
     required this.individual,
-    required this.dateFormat,
+    required this.formatDate,
     required this.onTap,
     required this.onDelete,
   });
@@ -340,7 +372,7 @@ class _GamsCard extends StatelessWidget {
                     fontSize: 12, color: WaidblickColors.textSecondary),
               ),
               Text(
-                'Zuletzt: ${dateFormat.format(individual.lastSeen)}',
+                'Zuletzt: ${formatDate(individual.lastSeen)}',
                 style: const TextStyle(
                     fontSize: 12, color: WaidblickColors.textSecondary),
               ),

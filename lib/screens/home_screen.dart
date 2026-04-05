@@ -20,16 +20,19 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _authChecked = false;
   bool _isLoggedIn = false;
 
-  static const List<Widget> _screens = [
-    AnalysisScreen(),
-    GamsbookScreen(),
-    InfoScreen(),
-    SettingsScreen(),
-  ];
+  late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
+    _screens = [
+      const AnalysisScreen(),
+      GamsbookScreen(
+        onNavigateToAnalysis: () => setState(() => _currentIndex = 0),
+      ),
+      const InfoScreen(),
+      const SettingsScreen(),
+    ];
     _checkAuth();
   }
 

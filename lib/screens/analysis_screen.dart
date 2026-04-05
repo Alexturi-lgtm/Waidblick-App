@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -48,6 +49,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   final List<String> _photoPaths = [];
   final List<PhotoQualityResult> _photoQualities = [];
   bool _isAnalyzing = false;
+  int _loadingMessageIndex = 0;
+  Timer? _loadingTimer;
+  int _analysisCount = 0;
+  bool _isPremiumUser = false;
+
+  static const _loadingMessages = [
+    'KI analysiert Wildtier...',
+    'Merkmale werden ausgewertet...',
+    'Ergebnis wird erstellt...',
+  ];
   HuntingRegion _huntingRegion = HuntingRegion.other;
   Position? _currentPosition;
   AgeEstimate? _latestVisionEstimate; // Letzte Vision-API Schätzung
@@ -87,6 +98,44 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   void initState() {
     super.initState();
     _loadRegion();
+    _loadAnalysisCount();
+  }
+
+  @override
+  void dispose() {
+    _loadingTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadAnalysisCount() async {
+    try {
+      final premium = await ProfileService.isPremium();
+      final profile = await ProfileService.getProfile();
+      final count = profile?['analyses_this_month'] as int? ?? 0;
+      if (mounted) {
+        setState(() {
+          _isPremiumUser = premium;
+          _analysisCount = count;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _startLoadingAnimation() {
+    _loadingTimer?.cancel();
+    _loadingMessageIndex = 0;
+    _loadingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (mounted) {
+        setState(() {
+          _loadingMessageIndex = (_loadingMessageIndex + 1) % _loadingMessages.length;
+        });
+      }
+    });
+  }
+
+  void _stopLoadingAnimation() {
+    _loadingTimer?.cancel();
+    _loadingTimer = null;
   }
 
   Future<void> _loadRegion() async {
@@ -266,7 +315,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     }
 
     final imageBytes = await picked.readAsBytes();
-    if (mounted) setState(() => _isAnalyzing = true);
+    if (mounted) {
+      setState(() => _isAnalyzing = true);
+      _startLoadingAnimation();
+    }
 
     try {
       // ── Foto-Qualitäts-Check ──────────────────────────────────────────
@@ -426,11 +478,28 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final errorStr = e.toString().toLowerCase();
+        final isNetworkError = errorStr.contains('socket') ||
+            errorStr.contains('network') ||
+            errorStr.contains('connection') ||
+            errorStr.contains('host') ||
+            errorStr.contains('http') ||
+            errorStr.contains('timeout') ||
+            errorStr.contains('unreachable');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Analysefehler: $e')),
+          SnackBar(
+            content: Text(
+              isNetworkError
+                  ? 'Keine Verbindung zum Server. Bitte WLAN prüfen.'
+                  : 'Analysefehler: $e',
+            ),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     } finally {
+      _stopLoadingAnimation();
       if (mounted) setState(() => _isAnalyzing = false);
     }
   }
@@ -578,6 +647,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     } catch (_) {
       // Quota-Fehler nicht propagieren
     }
+
+    // Counter aktualisieren
+    _loadAnalysisCount();
   }
 
   Future<void> _showPickerDialog() async {
@@ -1287,33 +1359,69 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           errorBuilder: (_, __, ___) => Container(color: WaidblickColors.background),
         ),
         Container(color: Colors.black.withOpacity(0.80)),
-        const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(
-                color: WaidblickColors.primary,
-                strokeWidth: 3,
-              ),
-              SizedBox(height: 24),
-              Text(
-                'KI analysiert Foto...',
-                style: TextStyle(
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(
                   color: WaidblickColors.primary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
+                  strokeWidth: 3,
                 ),
-              ),
-              SizedBox(height: 6),
-              Text(
-                'Bitte warten...',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: WaidblickColors.textSecondary,
+                const SizedBox(height: 24),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 400),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.15),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  ),
+                  child: Text(
+                    _loadingMessages[_loadingMessageIndex],
+                    key: ValueKey(_loadingMessageIndex),
+                    style: const TextStyle(
+                      color: WaidblickColors.primary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                const Text(
+                  'Bitte warten...',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: WaidblickColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    _loadingMessages.length,
+                    (i) => Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: i == _loadingMessageIndex ? 16 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: i == _loadingMessageIndex
+                            ? WaidblickColors.primary
+                            : WaidblickColors.primary.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -1336,7 +1444,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         const Spacer(),
         // Zwei Buttons direkt auf dem Hintergrund, unten
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -1357,7 +1465,54 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             ],
           ),
         ),
+        _buildAnalysisCounterBanner(),
+        const SizedBox(height: 24),
       ],
+    );
+  }
+
+  Widget _buildAnalysisCounterBanner() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _isPremiumUser
+                ? WaidblickColors.primary.withOpacity(0.5)
+                : Colors.white.withOpacity(0.15),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _isPremiumUser ? Icons.all_inclusive : Icons.analytics_outlined,
+              size: 15,
+              color: _isPremiumUser
+                  ? WaidblickColors.primary
+                  : const Color(0xFFF5F0E8).withOpacity(0.7),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _isPremiumUser
+                  ? 'Premium: Unbegrenzte Analysen ✓'
+                  : '$_analysisCount von 5 Analysen diesen Monat verwendet',
+              style: TextStyle(
+                fontSize: 12,
+                color: _isPremiumUser
+                    ? WaidblickColors.primary
+                    : const Color(0xFFF5F0E8).withOpacity(0.7),
+                fontWeight:
+                    _isPremiumUser ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
