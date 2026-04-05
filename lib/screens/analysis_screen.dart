@@ -26,6 +26,7 @@ import '../widgets/probability_bars.dart';
 import 'photo_guide_screen.dart';
 import 'paywall_screen.dart';
 import '../services/freemium_service.dart';
+import '../services/profile_service.dart';
 import '../services/regional_data.dart';
 // settings_screen.dart used via HomeScreen tab
 
@@ -393,14 +394,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             begr.contains('körper nicht');
         if (mounted) setState(() => _erlegerbild = isErlegerbild);
 
-        // Freemium-Counter erhöhen
+        // Freemium-Counter + Supabase-Counter erhöhen
         await FreemiumService.incrementAnalyseCount();
+        await _incrementAndCheckQuota();
       } catch (e) {
         // Nur bei echtem Fehler: Mock als Fallback
         final mockResult = await _mlService.analyze(imageBytes);
         _engine.processScores(
             mockResult.scores, mockResult.quality, mockResult.perspective);
         await FreemiumService.incrementAnalyseCount();
+        await _incrementAndCheckQuota();
       }
 
       if (mounted) setState(() {
@@ -552,6 +555,28 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         ),
       );
       _resetSession();
+    }
+  }
+
+  /// Supabase-Analyse-Counter erhöhen + Quota prüfen; bei Überschreitung PaywallScreen pushen
+  Future<void> _incrementAndCheckQuota() async {
+    try {
+      await ProfileService.incrementAnalysis();
+    } catch (_) {
+      // Fehler beim Zählen nicht propagieren (kein Analysefehler)
+    }
+
+    // Quota-Prüfung: false = Limit überschritten → Paywall
+    try {
+      final hasQuota = await ProfileService.hasAnalysisQuota();
+      if (!hasQuota && mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PaywallScreen()),
+        );
+      }
+    } catch (_) {
+      // Quota-Fehler nicht propagieren
     }
   }
 

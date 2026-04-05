@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -85,6 +86,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 24),
 
+              // ── Social Login Buttons ──────────────────────────────
+              _buildSocialLoginButtons(),
+              const SizedBox(height: 20),
+
+              // ── Trennlinie "— oder —" ────────────────────────────
+              Row(
+                children: [
+                  Expanded(child: Divider(color: WaidblickColors.textPrimary.withOpacity(0.2))),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      '— oder —',
+                      style: TextStyle(
+                        color: WaidblickColors.textPrimary.withOpacity(0.4),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: WaidblickColors.textPrimary.withOpacity(0.2))),
+                ],
+              ),
+              const SizedBox(height: 20),
+
               // Submit Button
               ElevatedButton(
                 onPressed: _loading ? null : _submit,
@@ -171,6 +195,113 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildSocialLoginButtons() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Google-Button
+        OutlinedButton(
+          onPressed: _loading ? null : _signInWithGoogle,
+          style: OutlinedButton.styleFrom(
+            backgroundColor: const Color(0xFFF8F8F8),
+            foregroundColor: const Color(0xFF333333),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            side: const BorderSide(color: Color(0xFFDDDDDD)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Google G Logo
+              Container(
+                width: 20,
+                height: 20,
+                decoration: const BoxDecoration(
+                  color: Colors.transparent,
+                ),
+                child: const Text(
+                  'G',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF4285F4),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Mit Google anmelden',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Apple-Button: nur auf iOS anzeigen
+        if (Platform.isIOS) ...[  
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: _loading ? null : _signInWithApple,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Apple-Logo ( = Apple-Symbol in Apple-Font, Fallback: Icon)
+                Icon(Icons.apple, size: 22, color: Colors.white),
+                SizedBox(width: 8),
+                Text(
+                  'Mit Apple anmelden',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      await AuthService.signInWithGoogle();
+      // OAuth-Flow öffnet Browser/WebView; Redirect schließt ihn und
+      // triggert onAuthStateChange → Navigator-Push passiert via AuthWrapper
+    } catch (e) {
+      if (mounted) {
+        setState(() { _error = 'Google-Login fehlgeschlagen: ${e.toString().replaceAll("Exception: ", "")}'; });
+      }
+    } finally {
+      if (mounted) setState(() { _loading = false; });
+    }
+  }
+
+  Future<void> _signInWithApple() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      await AuthService.signInWithApple();
+      // OAuth-Flow: s.o.
+    } catch (e) {
+      if (mounted) {
+        setState(() { _error = 'Apple-Login fehlgeschlagen: ${e.toString().replaceAll("Exception: ", "")}'; });
+      }
+    } finally {
+      if (mounted) setState(() { _loading = false; });
+    }
   }
 
   Future<void> _submit() async {

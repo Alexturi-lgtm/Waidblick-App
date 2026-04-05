@@ -36,6 +36,32 @@ class AuthService {
     await client.auth.signInWithOtp(email: email);
   }
 
+  /// Google Login via Supabase OAuth
+  static Future<bool> signInWithGoogle() async {
+    final result = await client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: 'io.supabase.waidblick://login-callback/',
+    );
+    return result;
+  }
+
+  /// Apple Login via Supabase OAuth
+  static Future<bool> signInWithApple() async {
+    final result = await client.auth.signInWithOAuth(
+      OAuthProvider.apple,
+      redirectTo: 'io.supabase.waidblick://login-callback/',
+    );
+    return result;
+  }
+
+  /// Passwort-Reset E-Mail senden
+  static Future<void> resetPassword(String email) async {
+    await client.auth.resetPasswordForEmail(
+      email,
+      redirectTo: 'io.supabase.waidblick://reset-callback/',
+    );
+  }
+
   /// Logout
   static Future<void> signOut() async {
     await client.auth.signOut();

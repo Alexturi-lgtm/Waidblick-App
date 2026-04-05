@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'analysis_screen.dart';
 import 'gamsbook_screen.dart';
 import 'info_screen.dart';
+import 'login_screen.dart';
 import 'settings_screen.dart';
 
 /// Haupt-Screen mit BottomNavigationBar.
@@ -15,6 +17,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  bool _authChecked = false;
+  bool _isLoggedIn = false;
 
   static const List<Widget> _screens = [
     AnalysisScreen(),
@@ -22,6 +26,22 @@ class _HomeScreenState extends State<HomeScreen> {
     InfoScreen(),
     SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = user != null;
+        _authChecked = true;
+      });
+    }
+  }
 
   void _onTabTapped(int index) {
     setState(() {
@@ -31,6 +51,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Kurze Ladezeit beim Auth-Check
+    if (!_authChecked) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0A0A0A),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFF5A623)),
+        ),
+      );
+    }
+
+    // Nicht eingeloggt → LoginScreen
+    if (!_isLoggedIn) {
+      return const LoginScreen();
+    }
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
