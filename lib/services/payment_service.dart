@@ -90,7 +90,7 @@ class PaymentService {
       }
 
       final package = current.availablePackages.firstWhere(
-        (p) => p.storeProduct.productIdentifier == productId,
+        (p) => p.storeProduct.identifier == productId,
         orElse: () => throw Exception('Produkt nicht gefunden: $productId'),
       );
 
