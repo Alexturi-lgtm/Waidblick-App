@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:exif/exif.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../models/age_estimate.dart';
@@ -303,14 +304,32 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     }
   }
 
+  /// Prüft ob Gast-Modus aktiv
+  Future<bool> _isGuestMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('guest_mode') ?? false;
+  }
+
   Future<void> _analyzeXFile(XFile picked, {bool fromGallery = false}) async {
     // Freemium-Check: Analyse-Limit
+    final guestMode = await _isGuestMode();
     final canAnalyze = await FreemiumService.canAnalyze();
     if (!canAnalyze && mounted) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const PaywallScreen()),
-      );
+      if (guestMode) {
+        // Gast: Anmelde-Hinweis statt PaywallScreen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bitte melde dich an für mehr Analysen.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PaywallScreen()),
+        );
+      }
       return;
     }
 
@@ -627,7 +646,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     }
   }
 
-  /// Supabase-Analyse-Counter erhöhen + Quota prüfen; bei Überschreitung PaywallScreen pushen
+  /// Supabase-Analyse-Counter erhöhen + Quota prüfen; bei Überschreitung Paywall oder Anmelde-Hinweis
   Future<void> _incrementAndCheckQuota() async {
     try {
       await ProfileService.incrementAnalysis();
@@ -635,14 +654,26 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       // Fehler beim Zählen nicht propagieren (kein Analysefehler)
     }
 
-    // Quota-Prüfung: false = Limit überschritten → Paywall
+    // Quota-Prüfung: false = Limit überschritten
     try {
       final hasQuota = await ProfileService.hasAnalysisQuota();
       if (!hasQuota && mounted) {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const PaywallScreen()),
-        );
+        final guestMode = await _isGuestMode();
+        if (guestMode) {
+          // Gast: Anmelde-Hinweis statt PaywallScreen
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bitte melde dich an für vollen Zugang.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        } else {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PaywallScreen()),
+          );
+        }
       }
     } catch (_) {
       // Quota-Fehler nicht propagieren
@@ -694,11 +725,22 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final currentCount = DatabaseService.instance.individuals.length;
     final canSave = await FreemiumService.canSaveToLookbook(currentCount);
     if (!canSave && mounted) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (_) => const PaywallScreen(isLookbookLimit: true)),
-      );
+      final guestMode = await _isGuestMode();
+      if (guestMode) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bitte melde dich an für vollen Zugang zum Lookbook.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => const PaywallScreen(isLookbookLimit: true)),
+        );
+      }
       return;
     }
 

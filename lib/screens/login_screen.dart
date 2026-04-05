@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../services/payment_service.dart';
 import '../theme/app_theme.dart';
@@ -151,12 +152,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 16),
 
-              // Ohne Login weitermachen
+              // Ohne Login weitermachen (Gast-Modus)
               TextButton(
-                onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
-                child: Text(
-                  'Ohne Account fortfahren',
-                  style: TextStyle(color: WaidblickColors.textPrimary.withOpacity(0.5), fontSize: 13),
+                onPressed: () {
+                  SharedPreferences.getInstance().then((prefs) {
+                    prefs.setBool('guest_mode', true);
+                  });
+                  Navigator.pushReplacementNamed(context, '/home');
+                },
+                child: const Text(
+                  'Ohne Account fortfahren →',
+                  style: TextStyle(color: Colors.white54, fontSize: 13),
                 ),
               ),
             ],

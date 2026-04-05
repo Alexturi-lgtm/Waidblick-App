@@ -32,7 +32,11 @@ class ProfileService {
 
   static Future<Map<String, dynamic>> incrementAnalysis() async {
     final user = _client.auth.currentUser;
-    if (user == null) throw Exception('Not logged in');
+    if (user == null) {
+      // Gast-Modus: lokalen Fallback nutzen
+      await _incrementLocalCount();
+      return {'success': true, 'local_fallback': true, 'guest': true};
+    }
 
     try {
       final response = await _client
@@ -85,17 +89,21 @@ class ProfileService {
     try {
       // RevenueCat ist die Source of Truth für Bezahlung
       return await PaymentService.isPremium();
-    } catch (e) {
+    } catch (_) {
       // Fallback: Supabase-Profil prüfen
-      final profile = await getProfile();
-      if (profile == null) return false;
-      final status = profile['subscription_status'] as String? ?? 'free';
-      if (status == 'free') return false;
-      final expires = profile['subscription_expires'];
-      if (expires != null) {
-        return DateTime.parse(expires).isAfter(DateTime.now());
+      try {
+        final profile = await getProfile();
+        if (profile == null) return false;
+        final status = profile['subscription_status'] as String? ?? 'free';
+        if (status == 'free') return false;
+        final expires = profile['subscription_expires'];
+        if (expires != null) {
+          return DateTime.parse(expires).isAfter(DateTime.now());
+        }
+        return status == 'premium' || status == 'beta';
+      } catch (_) {
+        return false;
       }
-      return status == 'premium' || status == 'beta';
     }
   }
 

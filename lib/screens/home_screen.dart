@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'analysis_screen.dart';
 import 'gamsbook_screen.dart';
@@ -38,9 +39,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _checkAuth() async {
     final user = Supabase.instance.client.auth.currentUser;
+    final prefs = await SharedPreferences.getInstance();
+    final guestMode = prefs.getBool('guest_mode') ?? false;
     if (mounted) {
       setState(() {
-        _isLoggedIn = user != null;
+        _isLoggedIn = user != null || guestMode;
         _authChecked = true;
       });
     }
