@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'payment_service.dart';
 
 class AuthService {
   static SupabaseClient get client => Supabase.instance.client;
@@ -25,10 +26,14 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    return await client.auth.signInWithPassword(
+    final response = await client.auth.signInWithPassword(
       email: email,
       password: password,
     );
+    if (response.user != null) {
+      await PaymentService.loginUser(response.user!.id);
+    }
+    return response;
   }
 
   /// Magic Link (passwordless)
@@ -42,6 +47,11 @@ class AuthService {
       OAuthProvider.google,
       redirectTo: 'io.supabase.waidblick://login-callback/',
     );
+    // OAuth-Flows leiten weiter — User-ID nach Redirect verfügbar
+    final user = client.auth.currentUser;
+    if (result && user != null) {
+      await PaymentService.loginUser(user.id);
+    }
     return result;
   }
 
@@ -51,6 +61,11 @@ class AuthService {
       OAuthProvider.apple,
       redirectTo: 'io.supabase.waidblick://login-callback/',
     );
+    // OAuth-Flows leiten weiter — User-ID nach Redirect verfügbar
+    final user = client.auth.currentUser;
+    if (result && user != null) {
+      await PaymentService.loginUser(user.id);
+    }
     return result;
   }
 
@@ -64,6 +79,7 @@ class AuthService {
 
   /// Logout
   static Future<void> signOut() async {
+    await PaymentService.logoutUser();
     await client.auth.signOut();
   }
 

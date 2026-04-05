@@ -4,6 +4,7 @@ import 'screens/home_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/database_service.dart';
+import 'services/payment_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -15,6 +16,7 @@ void main() async {
   );
 
   await DatabaseService.instance.load();
+  await PaymentService.initialize();
   runApp(const WaidblickApp());
 }
 

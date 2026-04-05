@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'payment_service.dart';
 
 /// ProfileService: Supabase-Profil, Premium-Status und Analyse-Quotas verwalten.
 /// Fallback auf SharedPreferences wenn Supabase-RPC nicht verfügbar.
@@ -81,18 +82,21 @@ class ProfileService {
   // ─── Premium-Status prüfen ───────────────────────────────────────────────────
 
   static Future<bool> isPremium() async {
-    final profile = await getProfile();
-    if (profile == null) return false;
-
-    final status = profile['subscription_status'] as String? ?? 'free';
-    if (status == 'free') return false;
-    if (status == 'lifetime') return true;
-
-    final expires = profile['subscription_expires'];
-    if (expires != null) {
-      return DateTime.parse(expires.toString()).isAfter(DateTime.now());
+    try {
+      // RevenueCat ist die Source of Truth für Bezahlung
+      return await PaymentService.isPremium();
+    } catch (e) {
+      // Fallback: Supabase-Profil prüfen
+      final profile = await getProfile();
+      if (profile == null) return false;
+      final status = profile['subscription_status'] as String? ?? 'free';
+      if (status == 'free') return false;
+      final expires = profile['subscription_expires'];
+      if (expires != null) {
+        return DateTime.parse(expires).isAfter(DateTime.now());
+      }
+      return status == 'premium' || status == 'beta';
     }
-    return false;
   }
 
   // ─── Monatslimit prüfen (5 für free) ────────────────────────────────────────

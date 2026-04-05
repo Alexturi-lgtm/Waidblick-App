@@ -3,6 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../theme/app_theme.dart';
+import '../services/payment_service.dart';
+import '../services/profile_service.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 
 /// Paywall-Screen: Freemium-Limit + Beta-Zugang per E-Mail-Whitelist
 class PaywallScreen extends StatefulWidget {
@@ -17,13 +20,118 @@ class PaywallScreen extends StatefulWidget {
 class _PaywallScreenState extends State<PaywallScreen> {
   final _emailController = TextEditingController();
   bool _checkingEmail = false;
+  bool _purchasingMonthly = false;
+  bool _purchasingYearly = false;
+  bool _restoringPurchases = false;
+
+  // Dynamische Preise (aus RevenueCat, Fallback auf Hardcoded)
+  String _monthlyPrice = '12,99\u00a0€/Monat';
+  String _yearlyPrice = '99\u00a0€/Jahr';
 
   static const String _backendUrl = 'http://204.168.216.110';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDynamicPrices();
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     super.dispose();
+  }
+
+  /// Versucht Preise dynamisch aus RevenueCat zu laden
+  Future<void> _loadDynamicPrices() async {
+    try {
+      final products = await PaymentService.getProducts();
+      if (!mounted) return;
+      for (final product in products) {
+        final id = product.productIdentifier;
+        final price = product.priceString;
+        if (id == 'de.waidblick.premium.monthly') {
+          setState(() => _monthlyPrice = '$price/Monat');
+        } else if (id == 'de.waidblick.premium.yearly') {
+          setState(() => _yearlyPrice = '$price/Jahr');
+        }
+      }
+    } catch (_) {
+      // Fallback-Preise bleiben bestehen
+    }
+  }
+
+  Future<void> _purchaseMonthly() async {
+    setState(() => _purchasingMonthly = true);
+    try {
+      final result = await PaymentService.purchaseMonthly();
+      if (!mounted) return;
+      if (result.success) {
+        await _onPurchaseSuccess();
+      } else if (!result.cancelled) {
+        _showError(result.error ?? 'Kauf fehlgeschlagen.');
+      }
+    } finally {
+      if (mounted) setState(() => _purchasingMonthly = false);
+    }
+  }
+
+  Future<void> _purchaseYearly() async {
+    setState(() => _purchasingYearly = true);
+    try {
+      final result = await PaymentService.purchaseYearly();
+      if (!mounted) return;
+      if (result.success) {
+        await _onPurchaseSuccess();
+      } else if (!result.cancelled) {
+        _showError(result.error ?? 'Kauf fehlgeschlagen.');
+      }
+    } finally {
+      if (mounted) setState(() => _purchasingYearly = false);
+    }
+  }
+
+  Future<void> _restorePurchases() async {
+    setState(() => _restoringPurchases = true);
+    try {
+      final isPremium = await PaymentService.restorePurchases();
+      if (!mounted) return;
+      if (isPremium) {
+        await _onPurchaseSuccess();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Kein aktives Abo gefunden.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) _showError('Wiederherstellen fehlgeschlagen: $e');
+    } finally {
+      if (mounted) setState(() => _restoringPurchases = false);
+    }
+  }
+
+  Future<void> _onPurchaseSuccess() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✅ Premium aktiviert! Waidmannsheil!'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 3),
+      ),
+    );
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (mounted) Navigator.pop(context, true);
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('❌ $message'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   Future<void> _checkBetaAccess() async {
@@ -88,17 +196,15 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
     // status == denied
     if (mounted) {
-      if (true) {
-        setState(() => _checkingEmail = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                '❌ Diese E-Mail ist nicht für den Beta-Zugang freigeschalten.'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
+      setState(() => _checkingEmail = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              '❌ Diese E-Mail ist nicht für den Beta-Zugang freigeschalten.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
   }
 
@@ -173,14 +279,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
               // Button 1: Monatsabo
               FilledButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('In-App-Purchase kommt bald!'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
+                onPressed: _purchasingMonthly ? null : _purchaseMonthly,
                 style: FilledButton.styleFrom(
                   backgroundColor: WaidblickColors.primary,
                   foregroundColor: Colors.black,
@@ -189,64 +288,95 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Column(
-                  children: [
-                    Text(
-                      'Premium — 12,99 €/Monat',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
+                child: _purchasingMonthly
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.black,
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          Text(
+                            'Premium — $_monthlyPrice',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const Text(
+                            'Monatlich kündbar',
+                            style: TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.normal),
+                          ),
+                        ],
                       ),
-                    ),
-                    Text(
-                      'Monatlich kündbar',
-                      style:
-                          TextStyle(fontSize: 11, fontWeight: FontWeight.normal),
-                    ),
-                  ],
-                ),
               ),
               const SizedBox(height: 10),
 
               // Button 2: Jahresabo
               OutlinedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('In-App-Purchase kommt bald!'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
+                onPressed: _purchasingYearly ? null : _purchaseYearly,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: WaidblickColors.primary,
-                  side:
-                      const BorderSide(color: WaidblickColors.primary, width: 1.5),
+                  side: const BorderSide(
+                      color: WaidblickColors.primary, width: 1.5),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Column(
-                  children: [
-                    Text(
-                      'Jahresabo — 99 €/Jahr',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                child: _purchasingYearly
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: WaidblickColors.primary,
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          Text(
+                            'Jahresabo — $_yearlyPrice',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const Text(
+                            'Spart 57 € gegenüber Monatsabo',
+                            style: TextStyle(fontSize: 11),
+                          ),
+                        ],
                       ),
-                    ),
-                    Text(
-                      'Spart 57 € gegenüber Monatsabo',
-                      style: TextStyle(fontSize: 11),
-                    ),
-                  ],
-                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Käufe wiederherstellen
+              TextButton(
+                onPressed: _restoringPurchases ? null : _restorePurchases,
+                child: _restoringPurchases
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: WaidblickColors.textSecondary,
+                        ),
+                      )
+                    : const Text(
+                        'Käufe wiederherstellen',
+                        style: TextStyle(
+                            color: WaidblickColors.textSecondary, fontSize: 13),
+                      ),
               ),
 
               // ── oder ── Divider
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
+                padding: EdgeInsets.symmetric(vertical: 8),
                 child: Row(
                   children: [
                     Expanded(child: Divider()),
@@ -255,8 +385,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       child: Text(
                         'oder',
                         style: TextStyle(
-                            color: WaidblickColors.textSecondary,
-                            fontSize: 13),
+                            color: WaidblickColors.textSecondary, fontSize: 13),
                       ),
                     ),
                     Expanded(child: Divider()),
@@ -271,8 +400,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 style: const TextStyle(color: WaidblickColors.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'E-Mail-Adresse eingeben',
-                  hintStyle: const TextStyle(
-                      color: WaidblickColors.textSecondary),
+                  hintStyle:
+                      const TextStyle(color: WaidblickColors.textSecondary),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide:
@@ -294,8 +423,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 onPressed: _checkingEmail ? null : _checkBetaAccess,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: WaidblickColors.primary,
-                  side:
-                      const BorderSide(color: WaidblickColors.primary, width: 1),
+                  side: const BorderSide(
+                      color: WaidblickColors.primary, width: 1),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

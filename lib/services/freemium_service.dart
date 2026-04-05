@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'profile_service.dart';
 
 /// Freemium-Limits für Analysen und Lookbook-Einträge.
 /// - 5 Analysen pro Monat (gratis)
@@ -9,8 +10,9 @@ class FreemiumService {
   static const int _maxAnalysenGratis = 5;
   static const int _maxLookbookGratis = 3;
 
-  /// Premium-Status — aktuell hardcoded false (In-App-Purchase TODO)
-  static bool get isPremium => false;
+  /// Premium-Status — delegiert an ProfileService (RevenueCat + Supabase-Fallback)
+  /// Hinweis: async-Variante über ProfileService.isPremium() verwenden!
+  static bool get isPremium => false; // Legacy-Compat; bevorzuge ProfileService.isPremium()
 
   /// Gibt die aktuelle Anzahl der Analysen diesen Monat zurück.
   static Future<int> getAnalysenCount() async {
@@ -20,8 +22,11 @@ class FreemiumService {
   }
 
   /// Prüft ob eine weitere Analyse erlaubt ist.
+  /// Nutzt ProfileService.isPremium() (RevenueCat) als primäre Quelle.
   static Future<bool> canAnalyze() async {
-    if (isPremium) return true;
+    final premium = await ProfileService.isPremium();
+    if (premium) return true;
+    // Fallback: lokaler Zähler
     final count = await getAnalysenCount();
     return count < _maxAnalysenGratis;
   }
@@ -35,14 +40,17 @@ class FreemiumService {
   }
 
   /// Prüft ob das Speichern im Lookbook erlaubt ist.
+  /// Nutzt ProfileService.isPremium() (RevenueCat) als primäre Quelle.
   static Future<bool> canSaveToLookbook(int currentCount) async {
-    if (isPremium) return true;
+    final premium = await ProfileService.isPremium();
+    if (premium) return true;
     return currentCount < _maxLookbookGratis;
   }
 
   /// Verbleibende Analysen diesen Monat.
   static Future<int> remainingAnalysen() async {
-    if (isPremium) return 999;
+    final premium = await ProfileService.isPremium();
+    if (premium) return 999;
     final count = await getAnalysenCount();
     return (_maxAnalysenGratis - count).clamp(0, _maxAnalysenGratis);
   }
