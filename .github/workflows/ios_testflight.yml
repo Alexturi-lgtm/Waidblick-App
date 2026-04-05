@@ -39,6 +39,7 @@ jobs:
 
       - name: Install CocoaPods
         run: |
+          gem install cocoapods --version '1.15.2' --no-document
           cd ios
           pod install --repo-update
 
