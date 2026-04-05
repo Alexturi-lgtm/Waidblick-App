@@ -10,8 +10,8 @@ class PaymentService {
     defaultValue: 'test_LDYuPtXOugEoyNkUsyFiwKHsIJK',
   );
 
-  static const String _monthlyProductId = 'de.waidblick.premium.monthly';
-  static const String _yearlyProductId = 'de.waidblick.premium.yearly';
+  static const String _monthlyProductId = 'monthly';
+  static const String _yearlyProductId = 'yearly';
 
   /// RevenueCat initialisieren (in main.dart aufrufen)
   static Future<void> initialize() async {
