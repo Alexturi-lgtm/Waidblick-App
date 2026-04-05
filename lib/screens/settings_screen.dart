@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../services/auth_service.dart';
+import '../services/payment_service.dart';
+import '../services/profile_service.dart';
 import '../services/settings_service.dart';
 import '../models/hunting_regulations.dart';
 import '../theme/app_theme.dart';
 import 'impressum_screen.dart';
+import 'paywall_screen.dart';
+import 'login_screen.dart';
 
 /// Einstellungs-Screen: Abschussklassen je Wildart und Region
 class SettingsScreen extends StatefulWidget {
@@ -19,6 +27,12 @@ class _SettingsScreenState extends State<SettingsScreen>
   String _gamsRegion = 'Bayern';
   bool _loading = true;
   bool _learningEnabled = false;
+
+  // Account & Voucher
+  String? _userEmail;
+  String _subscriptionLabel = 'Free';
+  bool _voucherLoading = false;
+  final TextEditingController _voucherController = TextEditingController();
 
   static const List<String> _gamsRegions = [
     'Bayern',
@@ -39,18 +53,107 @@ class _SettingsScreenState extends State<SettingsScreen>
   Future<void> _loadSettings() async {
     final region = await SettingsService.getRegion();
     final learning = await SettingsService.getLearningEnabled();
+    final email = AuthService.currentUser?.email;
+    String subLabel = 'Free';
+    try {
+      final isPremium = await ProfileService.isPremium();
+      if (isPremium) {
+        final profile = await AuthService.getProfile();
+        final status = profile?['subscription_status'] as String? ?? 'premium';
+        subLabel = status == 'beta' ? 'Beta' : 'Premium';
+      }
+    } catch (_) {}
     if (mounted) {
       setState(() {
         _selectedRegion = region;
         _learningEnabled = learning;
+        _userEmail = email;
+        _subscriptionLabel = subLabel;
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _redeemVoucher() async {
+    final code = _voucherController.text.trim();
+    if (code.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bitte einen Code eingeben.')),
+      );
+      return;
+    }
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bitte zuerst anmelden.')),
+      );
+      return;
+    }
+    setState(() => _voucherLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse('http://204.168.216.110/redeem-voucher'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+        body: jsonEncode({'code': code}),
+      );
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>?;
+        final expiresRaw = data?['expires_at'] as String?;
+        String expiresStr = '';
+        if (expiresRaw != null) {
+          try {
+            final dt = DateTime.parse(expiresRaw).toLocal();
+            expiresStr = ' bis ${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
+          } catch (_) {}
+        }
+        _voucherController.clear();
+        setState(() => _subscriptionLabel = 'Premium');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Premium aktiv$expiresStr 🎉'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Code ungültig oder bereits verwendet.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Netzwerkfehler beim Einlösen.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _voucherLoading = false);
+    }
+  }
+
+  Future<void> _signOut() async {
+    await AuthService.signOut();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
     }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _voucherController.dispose();
     super.dispose();
   }
 
@@ -72,6 +175,180 @@ class _SettingsScreenState extends State<SettingsScreen>
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                // ── Account-Bereich ────────────────────────────────────────
+                if (AuthService.isLoggedIn)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '👤 Account',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            const SizedBox(height: 8),
+                            if (_userEmail != null)
+                              Text(
+                                'E-Mail: $_userEmail',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Text('Abo: ',
+                                    style: TextStyle(fontSize: 13)),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: _subscriptionLabel == 'Free'
+                                        ? Colors.grey.withOpacity(0.15)
+                                        : WaidblickColors.primary
+                                            .withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    _subscriptionLabel,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: _subscriptionLabel == 'Free'
+                                          ? Colors.grey
+                                          : WaidblickColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    icon: const Icon(Icons.star_outline,
+                                        size: 16),
+                                    label: const Text('Abonnement',
+                                        style: TextStyle(fontSize: 12)),
+                                    onPressed: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              const PaywallScreen()),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: WaidblickColors.primary,
+                                      side: BorderSide(
+                                          color: WaidblickColors.primary),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    icon: const Icon(Icons.logout, size: 16),
+                                    label: const Text('Ausloggen',
+                                        style: TextStyle(fontSize: 12)),
+                                    onPressed: _signOut,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.redAccent,
+                                      side: const BorderSide(
+                                          color: Colors.redAccent),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // ── Gutschein-Bereich ──────────────────────────────────────
+                if (AuthService.isLoggedIn)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '🏟️ Gutschein-Code',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _voucherController,
+                                    decoration: InputDecoration(
+                                      hintText: 'Code eingeben',
+                                      hintStyle: TextStyle(
+                                          color: WaidblickColors.textPrimary
+                                              .withOpacity(0.4),
+                                          fontSize: 13),
+                                      filled: true,
+                                      fillColor: WaidblickColors.surface,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 10),
+                                      border: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                    style: const TextStyle(fontSize: 13),
+                                    textCapitalization:
+                                        TextCapitalization.characters,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed:
+                                      _voucherLoading ? null : _redeemVoucher,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: WaidblickColors.primary,
+                                    foregroundColor: WaidblickColors.background,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8)),
+                                  ),
+                                  child: _voucherLoading
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white),
+                                        )
+                                      : const Text('Einlösen',
+                                          style: TextStyle(fontSize: 13)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 4),
+
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,

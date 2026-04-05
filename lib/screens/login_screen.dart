@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/payment_service.dart';
 import '../theme/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -76,7 +77,29 @@ class _LoginScreenState extends State<LoginScreen> {
               _inputField(_emailController, 'E-Mail', Icons.mail_outline, keyboardType: TextInputType.emailAddress),
               const SizedBox(height: 16),
               _inputField(_passwordController, 'Passwort', Icons.lock_outline, obscure: true),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
+
+              // Passwort vergessen?
+              if (_isLogin)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _loading ? null : _resetPassword,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      'Passwort vergessen?',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: WaidblickColors.primary.withOpacity(0.8),
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 4),
 
               if (_error != null)
                 Padding(
@@ -304,6 +327,52 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  String _translateError(String error) {
+    final e = error.toLowerCase();
+    if (e.contains('invalid login credentials') || e.contains('invalid_credentials')) {
+      return 'E-Mail oder Passwort falsch.';
+    } else if (e.contains('email not confirmed')) {
+      return 'Bitte bestätige zuerst deine E-Mail-Adresse.';
+    } else if (e.contains('user already registered') || e.contains('already registered')) {
+      return 'Diese E-Mail-Adresse ist bereits registriert.';
+    } else if (e.contains('password should be at least')) {
+      return 'Das Passwort muss mindestens 6 Zeichen lang sein.';
+    } else if (e.contains('unable to validate email address')) {
+      return 'Ungültige E-Mail-Adresse.';
+    } else if (e.contains('network') || e.contains('socket') || e.contains('connection')) {
+      return 'Netzwerkfehler. Bitte Internetverbindung prüfen.';
+    } else if (e.contains('too many requests') || e.contains('rate limit')) {
+      return 'Zu viele Versuche. Bitte kurz warten.';
+    }
+    return error.replaceAll('Exception: ', '');
+  }
+
+  Future<void> _resetPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() { _error = 'Bitte zuerst E-Mail-Adresse eingeben.'; });
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      await AuthService.resetPassword(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('E-Mail wurde gesendet. Bitte prüfe deinen Posteingang.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() { _error = _translateError(e.toString()); });
+      }
+    } finally {
+      if (mounted) setState(() { _loading = false; });
+    }
+  }
+
   Future<void> _submit() async {
     setState(() { _loading = true; _error = null; });
     try {
@@ -313,15 +382,19 @@ class _LoginScreenState extends State<LoginScreen> {
           password: _passwordController.text,
         );
       } else {
-        await AuthService.signUp(
+        final response = await AuthService.signUp(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           fullName: _nameController.text.trim(),
         );
+        // PaymentService nach Registrierung initialisieren
+        if (response.user != null) {
+          await PaymentService.loginUser(response.user!.id);
+        }
       }
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
-      setState(() { _error = e.toString().replaceAll('Exception: ', ''); });
+      setState(() { _error = _translateError(e.toString()); });
     } finally {
       if (mounted) setState(() { _loading = false; });
     }
