@@ -7,7 +7,7 @@ class PaymentService {
   // Alex muss auf revenuecat.com Account erstellen + API Key holen
   static const String _revenueCatApiKey = String.fromEnvironment(
     'REVENUECAT_API_KEY',
-    defaultValue: 'appl_PLACEHOLDER_REPLACE_ME',
+    defaultValue: 'test_LDYuPtXOugEoyNkUsyFiwKHsIJK',
   );
 
   static const String _monthlyProductId = 'de.waidblick.premium.monthly';
