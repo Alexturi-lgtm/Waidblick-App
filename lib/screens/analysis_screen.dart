@@ -312,24 +312,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   Future<void> _analyzeXFile(XFile picked, {bool fromGallery = false}) async {
     // Freemium-Check: Analyse-Limit
-    final guestMode = await _isGuestMode();
     final canAnalyze = await FreemiumService.canAnalyze();
     if (!canAnalyze && mounted) {
-      if (guestMode) {
-        // Gast: Anmelde-Hinweis statt PaywallScreen
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Bitte melde dich an für mehr Analysen.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      } else {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const PaywallScreen()),
-        );
-      }
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PaywallScreen()),
+      );
       return;
     }
 
@@ -658,22 +646,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     try {
       final hasQuota = await ProfileService.hasAnalysisQuota();
       if (!hasQuota && mounted) {
-        final guestMode = await _isGuestMode();
-        if (guestMode) {
-          // Gast: Anmelde-Hinweis statt PaywallScreen
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Bitte melde dich an für vollen Zugang.'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        } else {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const PaywallScreen()),
-          );
-        }
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PaywallScreen()),
+        );
       }
     } catch (_) {
       // Quota-Fehler nicht propagieren
@@ -725,22 +701,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final currentCount = DatabaseService.instance.individuals.length;
     final canSave = await FreemiumService.canSaveToLookbook(currentCount);
     if (!canSave && mounted) {
-      final guestMode = await _isGuestMode();
-      if (guestMode) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Bitte melde dich an für vollen Zugang zum Lookbook.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      } else {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) => const PaywallScreen(isLookbookLimit: true)),
-        );
-      }
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PaywallScreen(isLookbookLimit: true)),
+      );
       return;
     }
 
