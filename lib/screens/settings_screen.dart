@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../services/auth_service.dart';
-import '../services/payment_service.dart';
 import '../services/profile_service.dart';
 import '../services/settings_service.dart';
 import '../models/hunting_regulations.dart';

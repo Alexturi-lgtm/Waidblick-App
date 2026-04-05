@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../theme/app_theme.dart';
 import '../services/payment_service.dart';
-import 'package:purchases_flutter/purchases_flutter.dart';
 
 /// Paywall-Screen: Freemium-Limit + Beta-Zugang per E-Mail-Whitelist
 class PaywallScreen extends StatefulWidget {

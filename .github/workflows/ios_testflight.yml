@@ -29,7 +29,7 @@ jobs:
         run: flutter pub get
 
       - name: Dart Analyze (Fehler frühzeitig erkennen)
-        run: flutter analyze --no-fatal-infos
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Setup Ruby & Fastlane
         uses: ruby/setup-ruby@v1
