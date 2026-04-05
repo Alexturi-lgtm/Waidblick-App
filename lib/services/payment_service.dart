@@ -72,21 +72,21 @@ class PaymentService {
   }
 
   /// Monatliches Abo kaufen
-  static Future<PurchaseResult> purchaseMonthly() async {
+  static Future<PaymentResult> purchaseMonthly() async {
     return await _purchasePackageById(_monthlyProductId);
   }
 
   /// Jährliches Abo kaufen
-  static Future<PurchaseResult> purchaseYearly() async {
+  static Future<PaymentResult> purchaseYearly() async {
     return await _purchasePackageById(_yearlyProductId);
   }
 
-  static Future<PurchaseResult> _purchasePackageById(String productId) async {
+  static Future<PaymentResult> _purchasePackageById(String productId) async {
     try {
       final offerings = await Purchases.getOfferings();
       final current = offerings.current;
       if (current == null) {
-        return PurchaseResult(success: false, error: 'Keine Produkte verfügbar');
+        return PaymentResult(success: false, error: 'Keine Produkte verfügbar');
       }
 
       final package = current.availablePackages.firstWhere(
@@ -94,16 +94,16 @@ class PaymentService {
         orElse: () => throw Exception('Produkt nicht gefunden: $productId'),
       );
 
-      final customerInfo = await Purchases.purchasePackage(package);
-      final isPremium = customerInfo.entitlements.active.containsKey('Waidblick Premium');
-      return PurchaseResult(success: isPremium);
-    } on PurchasesErrorCode catch (e) {
-      if (e == PurchasesErrorCode.purchaseCancelledError) {
-        return PurchaseResult(success: false, cancelled: true);
+      final result = await Purchases.purchase(PurchaseParams.package(package));
+      final isPremium = result.customerInfo.entitlements.active.containsKey('Waidblick Premium');
+      return PaymentResult(success: isPremium);
+    } on PurchasesError catch (e) {
+      if (e.code == PurchasesErrorCode.purchaseCancelledError) {
+        return PaymentResult(success: false, cancelled: true);
       }
-      return PurchaseResult(success: false, error: e.toString());
+      return PaymentResult(success: false, error: e.toString());
     } catch (e) {
-      return PurchaseResult(success: false, error: e.toString());
+      return PaymentResult(success: false, error: e.toString());
     }
   }
 
@@ -119,12 +119,12 @@ class PaymentService {
   }
 }
 
-class PurchaseResult {
+class PaymentResult {
   final bool success;
   final bool cancelled;
   final String? error;
 
-  PurchaseResult({
+  PaymentResult({
     required this.success,
     this.cancelled = false,
     this.error,
