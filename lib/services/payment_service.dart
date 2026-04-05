@@ -49,7 +49,7 @@ class PaymentService {
   static Future<bool> isPremium() async {
     try {
       final customerInfo = await Purchases.getCustomerInfo();
-      return customerInfo.entitlements.active.containsKey('premium');
+      return customerInfo.entitlements.active.containsKey('Waidblick Premium');
     } catch (e) {
       debugPrint('RevenueCat isPremium error: $e');
       return false;
@@ -95,7 +95,7 @@ class PaymentService {
       );
 
       final customerInfo = await Purchases.purchasePackage(package);
-      final isPremium = customerInfo.entitlements.active.containsKey('premium');
+      final isPremium = customerInfo.entitlements.active.containsKey('Waidblick Premium');
       return PurchaseResult(success: isPremium);
     } on PurchasesErrorCode catch (e) {
       if (e == PurchasesErrorCode.purchaseCancelledError) {
@@ -111,7 +111,7 @@ class PaymentService {
   static Future<bool> restorePurchases() async {
     try {
       final customerInfo = await Purchases.restorePurchases();
-      return customerInfo.entitlements.active.containsKey('premium');
+      return customerInfo.entitlements.active.containsKey('Waidblick Premium');
     } catch (e) {
       debugPrint('RevenueCat restore error: $e');
       return false;
