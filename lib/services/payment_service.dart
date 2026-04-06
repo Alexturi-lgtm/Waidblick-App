@@ -49,6 +49,11 @@ class PaymentService {
 
   /// Aktuellen Subscription-Status holen
   static Future<bool> isPremium() async {
+    // 🧪 TESTFLIGHT-MODUS: Paywall deaktiviert für Beta-Test
+    // TODO: Vor App Store Launch entfernen!
+    return true;
+
+    // ignore: dead_code
     try {
       final customerInfo = await Purchases.getCustomerInfo();
       return customerInfo.entitlements.active.containsKey('Waidblick Premium');
