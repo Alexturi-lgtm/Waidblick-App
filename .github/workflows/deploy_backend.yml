@@ -23,92 +23,12 @@ jobs:
 
       - name: Copy backend
         run: |
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no backend/main.py root@${{ secrets.HETZNER_IP }}:/tmp/main.py
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            backend/main.py \
+            root@${{ secrets.HETZNER_IP }}:/tmp/main.py
 
-      - name: Install dependencies
+      - name: Deploy
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ secrets.HETZNER_IP }} bash -s << 'EOF'
-          set -e
-          apt-get update -qq
-          apt-get install -y python3-pip python3-venv 2>/dev/null
-          pip3 uninstall -y google-generativeai google-genai google-auth google-cloud-core googleapis-common-protos google-api-core google-api-python-client google-cloud-storage 2>/dev/null || true
-          dpkg -r python3-google-auth 2>/dev/null || true
-          mkdir -p /opt/waidblick
-          cp /tmp/main.py /opt/waidblick/main.py
-          cd /opt/waidblick
-          rm -rf venv
-          python3 -m venv venv
-          ./venv/bin/pip install --upgrade pip -q
-          ./venv/bin/pip install fastapi uvicorn python-multipart pillow google-genai python-dotenv openai slowapi httpx PyJWT
-          ./venv/bin/python -c "from google import genai; print('genai import OK')"
-          printf "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}\n" > /opt/waidblick/.env
-          echo "All dependencies installed OK"
-          EOF
-
-      - name: Start service on port 8080
-        run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ secrets.HETZNER_IP }} bash << 'SSHEOF'
-          set -e
-          cat > /etc/systemd/system/waidblick.service << 'UNITEOF'
-[Unit]
-Description=WAIDBLICK Backend
-After=network.target
-
-[Service]
-WorkingDirectory=/opt/waidblick
-EnvironmentFile=/opt/waidblick/.env
-ExecStart=/opt/waidblick/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8080
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-UNITEOF
-          systemctl daemon-reload
-          systemctl enable waidblick
-          systemctl restart waidblick
-          sleep 10
-          curl -sf http://127.0.0.1:8080/health || (echo "HEALTH FAILED"; exit 1)
-          echo "Service running OK on port 8080"
-          SSHEOF
-
-      - name: Setup Nginx + Self-Signed SSL
-        run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ secrets.HETZNER_IP }} bash << 'SSHEOF'
-          set -e
-          apt-get install -y nginx openssl
-          openssl req -x509 -nodes -days 365 -newkey rsa:2048             -keyout /etc/ssl/private/waidblick.key             -out /etc/ssl/certs/waidblick.crt             -subj "/C=DE/ST=Bayern/L=Muenchen/O=Turok GmbH/CN=waidblick-backend"
-          cat > /etc/nginx/sites-available/waidblick << 'NGINXEOF'
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    return 301 https://$host$request_uri;
-}
-server {
-    listen 443 ssl default_server;
-    listen [::]:443 ssl default_server;
-    ssl_certificate /etc/ssl/certs/waidblick.crt;
-    ssl_certificate_key /etc/ssl/private/waidblick.key;
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-Proto https;
-    }
-}
-NGINXEOF
-          ln -sf /etc/nginx/sites-available/waidblick /etc/nginx/sites-enabled/
-          rm -f /etc/nginx/sites-enabled/default
-          nginx -t
-          systemctl enable nginx
-          systemctl restart nginx
-          sleep 3
-          curl -sk https://127.0.0.1/health && echo "HTTPS health check passed!" || echo "WARNING: HTTPS check failed, check manually"
-          SSHEOF
-
-      - name: Verify health via public IP
-        run: |
-          sleep 5
-          curl -skf https://${{ secrets.HETZNER_IP }}/health
-          echo ""
-          echo "Deploy successful!"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            root@${{ secrets.HETZNER_IP }} \
+            "mkdir -p /opt/waidblick && cp /tmp/main.py /opt/waidblick/main.py && cd /opt/waidblick && python3 -m venv venv 2>/dev/null || true && ./venv/bin/pip install -q fastapi uvicorn python-multipart pillow google-genai python-dotenv openai slowapi httpx PyJWT && printf 'GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}\n' > /opt/waidblick/.env && systemctl restart waidblick && sleep 5 && curl -sf http://127.0.0.1:8080/health && echo deploy_ok"

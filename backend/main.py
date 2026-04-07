@@ -1,4 +1,3 @@
-# deploy 1775591475
 """
 GamsScope Vision Backend
 FastAPI + Gemini Vision für Wildtier-Altersbestimmung
