@@ -107,8 +107,9 @@ WARNUNG: Hakelung allein unzuverlässig! Bockgehakelte Geißen existieren!
 GAMS — ALTER (Scoring 1-5, Quelle: Deutz/Greßmann/Prem TJV-Broschüre 2021):
 
 SCORING-MERKMALE GAMS:
-- windfang(25%): PRIMÄRES Altersmerkmal. 1=kurz/spitz/schmal (Jugend <3J), 2=Windfang-Breite nimmt zu (3-5J), 3=deutlich breiter, Zügel nicht mehr zusammenlaufend (5-8J), 4=hoch+breit+fleischig/grau (8-12J), 5=extrem breit+lang/weit über Brust hängend/von vorne parallel sichtbar (12+J)
-- gesichtszuegel(20%): 1=scharfrandig tiefschwarz kontrastreich (Jugend/Mittelklasse <7J), 2=gut sichtbar (6-8J), 3=leicht verwaschen/beginnt im höheren Mittelalter unscharf (8-9J Bild 11!), 4=stark verwaschen/helle Stellen rund um Lichter/"fahle Maske" (10-12J), 5=kaum erkennbar/einzelne weiße Haare eingestreut (12+J — sicheres Alterszeichen!)
+- windfang(20%): PRIMÄRES Altersmerkmal. 1=kurz/spitz/schmal (Jugend <3J), 2=Windfang-Breite nimmt zu (3-5J), 3=deutlich breiter, Zügel nicht mehr zusammenlaufend (5-8J), 4=hoch+breit+fleischig/grau (8-12J), 5=extrem breit+lang/weit über Brust hängend/von vorne parallel sichtbar (12+J)
+- gesichtszuegel(25%): ⭐ WICHTIGSTES EINZELMERKMAL! 1=scharfrandig tiefschwarz kontrastreich (Jugend/Mittelklasse <7J), 2=gut sichtbar aber Kontur nicht mehr gestochen (6-8J), 3=leicht verwaschen/beginnt unscharf/helle Bereiche erkennbar (8-9J Bild 11!), 4=stark verwaschen/"fahle Maske"/helle Stellen rund um Lichter/Zügel kaum von Fell zu unterscheiden (10-13J), 5=vollständig ausgewaschen/weiße Haare eingestreut/Zügel praktisch unsichtbar (13+J SICHERSTES Alterszeichen überhaupt!)
+  → ERKENNUNGSREGEL: Zügel können SUBTIL verwaschen sein! Nicht nur komplett weiße Zügel = Score 5 — auch wenn die schwarze Pigmentierung DEUTLICH schwächer als bei einem jungen Tier ist → Score 4-5 prüfen!
 - ruecken_koerper(20%): 1=gerade Rückenlinie/straff/hochläufig (Jugend), 2=leicht durchgebogen, 3=Senkrücken+Schulter beginnt hervorzutreten (Mittelklasse), 4=deutlicher Senkrücken+Hüfthöcker sichtbar+eingefallene Flanken (ab 10J), 5=Senkrücken+Hängebauch+Schulter+Hüfte massiv hervorstehend/"ausgemergelt" (sehr alt)
 - brustkern(15%): 1=kaum vorhanden/flach (Jugend), 2=leichter Ansatz (Mittelklasse Bock), 3=deutlich erkennbar/tritt hervor, 4=massiv/stark hervortretend (Altersklasse Geiß ab ~10J besonders), 5=extrem massiv/mächtig
 - augenbogen(10%): 1=unauffällig/flach (Jugend+Mittelklasse), 2=leicht angedeutet, 3=mäßig sichtbar, 4=deutlich prominent, 5=sehr stark wulstig hervortretend (Altersklasse Bock ~14J bestätigt Bild 05)
@@ -121,8 +122,8 @@ SCORE→ALTERSKLASSE (STRIKT nach Broschüre):
 1.0-1.8 → jugend (Jährling-3J): hochläufig, spitzer Windfang, scharfe Zügel, kurzes Haupt
 1.8-2.6 → mittel_jung (3-6J): Mittelklasse, Windfang breiter werdend, Zügel noch klar — SCHONEN!
 2.6-3.4 → mittel (6-10J): Mittelklasse/Grenzbereich, Zügel beginnen zu verwaschen — SCHONEN!
-3.4-4.2 → alt (10-13J): Altersklasse, verwaschene Zügel, Senkrücken, Hüfthöcker
-4.2-5.0 → sehr_alt (13+J): Altersklasse, alle Altersmerkmale deutlich
+3.4-4.2 → alt (10-14J): Altersklasse, stark verwaschene Zügel, Senkrücken, Hüfthöcker
+4.2-5.0 → sehr_alt (15+J): Altersklasse, Zügel vollständig ausgewaschen/weiße Haare, alle Altersmerkmale extrem
 
 KALIBRIERUNG (aus Broschüre-Ansprechübungen validiert):
 - Jährling (Bild 10): windfang=1, zuegel=1, ruecken=1, brustkern=1, augenbogen=1, hochlauf=1 → Score≈1.0 → alter_jahre=1
@@ -147,20 +148,45 @@ KRITISCHE WARNUNGEN (aus Broschüre):
 ⚠️ WINDFANG+ZÜGEL SIND PRIMÄR: Wenn Windfang breit/hängend (Score 4-5) UND Zügel verwaschen (Score 4-5) → IMMER alt/sehr_alt, unabhängig von Körperperspektive! Körperbau nur Sekundärmerkmal bei schlechter Perspektive!
 ⚠️ HÄUFIGER FEHLER: Junges Tier wirkt durch Untergrund/Winkel massig → NICHT auf Körpergröße verlassen wenn Gesicht mit verwaschenen Zügeln + breitem Windfang sichtbar!
 
-OVERRIDE-REGEL (VOR SCORING PRÜFEN!):
-Wenn gesichtszuegel=5 (kaum erkennbar, weiße Haare) UND/ODER augenbogen=4-5 (stark wulstig) sichtbar:
-→ SOFORT altersklasse="sehr_alt", alter_jahre=13-18 setzen — UNABHÄNGIG von anderen Merkmalen!
-Diese Kombination ist in der Broschüre als SICHERES Alterszeichen bestätigt.
-Verwaschen = kaum konturiert, fahle Maske, helle Bereiche um die Lichter = Wert 4-5.
+OVERRIDE-REGELN (VOR SCORING PRÜFEN — ZWINGEND!):
 
-SEHR ALT (13+J) — wenn MEHRERE dieser Merkmale sichtbar:
-✓ Windfang extrem breit/lang/parallel von vorne sichtbar (Score 5)
-✓ Gesichtszügel kaum erkennbar, einzelne weiße Haare eingestreut (Score 5)
-✓ Schulter UND Hüfthöcker hervorstehend = "wellige Kontur" von der Seite
-✓ Kastenförmiger, wuchtiger Körper — Gewicht auf Vorderläufen
-✓ Augenbogen stark wulstig
-✓ Eingefallene Flanken, evtl. "ausgezehrt" wirkend
-→ altersklasse="sehr_alt", alter_jahre=13-18, alter_stddev=1.5
+🔴 OVERRIDE 1 — ZÜGEL VOLLSTÄNDIG AUSGEWASCHEN:
+Wenn gesichtszuegel=5 (weiße Haare eingestreut, kaum erkennbar):
+→ SOFORT altersklasse="sehr_alt", alter_jahre=15-18 setzen — UNABHÄNGIG von ALLEM!
+→ Begründung MUSS enthalten: "Vollständig ausgewaschene Gesichtszügel mit weißen Haaren = sicherstes Alterszeichen ≥15J"
+
+🔴 OVERRIDE 2 — STARK VERWASCHENE ZÜGEL + BREITER WINDFANG:
+Wenn gesichtszuegel=4 (stark verwaschen, fahle Maske) UND windfang=4-5:
+→ SOFORT altersklasse="alt" oder "sehr_alt", alter_jahre=12-16 setzen
+→ Begründung MUSS enthalten: "Stark verwaschene Gesichtszügel kombiniert mit breitem Windfang = Altersklasse gesichert"
+
+🔴 OVERRIDE 3 — AUGENBOGEN + ZÜGEL:
+Wenn augenbogen=4-5 (stark wulstig) UND gesichtszuegel=4-5:
+→ SOFORT altersklasse="sehr_alt", alter_jahre=14-18
+
+⚠️ ZÜGEL-ERKENNUNGSREGEL — GENAU HINSCHAUEN!
+Zügel verwaschen bedeutet NICHT nur "komplett weiß"!
+Bereits wenn:
+- Die schwarze Linie vom Auge zum Maul unscharf oder grau wirkt
+- Helle/graue Bereiche um die Augen ("Lichtrand")
+- Der Kontrast zwischen Zügel und Fell-Umgebung deutlich reduziert ist
+→ Das ist Score 4! → Altersklasse alt/sehr_alt prüfen!
+
+ALT (10-14J) — wenn diese Merkmale sichtbar:
+✓ Windfang breit/fleischig/grau (Score 4)
+✓ Gesichtszügel stark verwaschen/fahle Maske/Lichtrand erkennbar (Score 4)
+✓ Senkrücken + Hüfthöcker sichtbar
+✓ Körper gedrungen, Läufe wirken kürzer
+→ altersklasse="alt", alter_jahre=10-14, alter_stddev=1.5
+
+SEHR ALT (15+J) — wenn EINES dieser sicheren Zeichen sichtbar:
+✓ Gesichtszügel VOLLSTÄNDIG ausgewaschen — weiße Haare eingestreut, schwarze Linie kaum noch erkennbar (Score 5) ← ALLEIN AUSREICHEND!
+✓ Windfang extrem lang/hängend/von vorne parallel sichtbar (Score 5) + verwaschene Zügel
+✓ Schulter UND Hüfthöcker extrem prominent = "Wellenkontur"
+✓ Kastenförmiger Körper, Gewicht deutlich auf Vorderläufen
+✓ Eingefallene Flanken + ausgezehrt wirkend
+→ altersklasse="sehr_alt", alter_jahre=15-18, alter_stddev=1.5
+→ HINWEIS: Score-5-Zügel ALLEIN reichen für sehr_alt — kein Körperbau-Beweis nötig!
 
 GAMS GESCHLECHT (Primär vor Alter!):
 Sicher BOCK: Hodensack sichtbar (ab 3J Sommerhaar, dunkel pigmentiert bei Alten) / Pinsel (heller Kehlfleck, buschig ab 5+J — IM SOMMERHAAR NICHT SICHTBAR!)
