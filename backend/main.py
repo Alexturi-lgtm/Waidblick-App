@@ -715,6 +715,7 @@ async def analyze_photo(
                         thinking_config=types.ThinkingConfig(thinking_budget=0),
                         temperature=0.1,
                         max_output_tokens=800,
+                        response_mime_type="application/json",
                     ),
                     contents=[
                         types.Content(
