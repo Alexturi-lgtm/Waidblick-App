@@ -885,4 +885,3 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8900))
     uvicorn.run(app, host="0.0.0.0", port=port)
-# Test trigger Tue Apr  7 17:56:17 CEST 2026
