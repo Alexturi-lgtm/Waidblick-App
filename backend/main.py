@@ -762,17 +762,32 @@ async def analyze_photo(
         # Gemini gibt manchmal Text vor/nach JSON aus
         # Finde das erste { und matche bis zum korrekten schließenden }
         def extract_json(text):
-            start = text.find('{')
-            if start == -1:
+            # Finde LETZTES vollständiges JSON-Objekt (CoT kommt vor JSON)
+            # Suche rückwärts vom Ende nach dem letzten '}'
+            last_end = text.rfind('}')
+            if last_end == -1:
                 return None
+            # Suche zugehöriges '{' von hinten
             depth = 0
-            for i, c in enumerate(text[start:], start):
-                if c == '{':
+            for i in range(last_end, -1, -1):
+                if text[i] == '}':
                     depth += 1
-                elif c == '}':
+                elif text[i] == '{':
                     depth -= 1
                     if depth == 0:
-                        return text[start:i+1]
+                        candidate = text[i:last_end+1]
+                        try:
+                            import json as _j
+                            _j.loads(candidate)
+                            return candidate
+                        except Exception:
+                            # Kein valides JSON, weitersuchen
+                            last_end = i - 1
+                            last_end = text.rfind('}', 0, last_end+1)
+                            if last_end == -1:
+                                return None
+                            depth = 0
+                            continue
             return None
 
         json_str = extract_json(raw)
