@@ -14,46 +14,35 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H 204.168.216.110 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -H ${{ secrets.HETZNER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Copy backend
         run: |
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no backend/main.py root@204.168.216.110:/tmp/main.py
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no backend/main.py root@${{ secrets.HETZNER_IP }}:/tmp/main.py
 
       - name: Install dependencies
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@204.168.216.110 bash -s << 'EOF'
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ secrets.HETZNER_IP }} bash -s << 'EOF'
           set -e
           apt-get update -qq
           apt-get install -y python3-pip python3-venv 2>/dev/null
 
-          # Remove ALL conflicting google namespace packages from system
           pip3 uninstall -y google-generativeai google-genai google-auth google-cloud-core \
             googleapis-common-protos google-api-core google-api-python-client \
             google-cloud-storage 2>/dev/null || true
-          # Also remove via apt if installed system-wide
           dpkg -r python3-google-auth 2>/dev/null || true
 
           mkdir -p /opt/waidblick
           cp /tmp/main.py /opt/waidblick/main.py
           cd /opt/waidblick
 
-          # Fresh venv
           rm -rf venv
           python3 -m venv venv
 
-          # Install everything into venv
           ./venv/bin/pip install --upgrade pip -q
           ./venv/bin/pip install fastapi uvicorn python-multipart pillow \
             google-genai python-dotenv openai slowapi httpx PyJWT
 
-          # Debug: check what google packages are in venv
-          echo "=== Google packages in venv ==="
-          ./venv/bin/pip list | grep -i google || echo "none"
-          echo "=== Google paths ==="
-          ./venv/bin/python -c "import google; print(google.__path__)"
-
-          # Verify import works
           ./venv/bin/python -c "from google import genai; print('genai import OK')"
 
           printf "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}\n" > /opt/waidblick/.env
@@ -62,7 +51,7 @@ jobs:
 
       - name: Start service
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@204.168.216.110 bash -s << 'EOF'
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ secrets.HETZNER_IP }} bash -s << 'EOF'
           set -e
           cat > /etc/systemd/system/waidblick.service << 'UNIT'
           [Unit]
@@ -83,13 +72,46 @@ jobs:
           systemctl enable waidblick
           systemctl restart waidblick
           sleep 10
-          journalctl -u waidblick -n 30 --no-pager || true
           curl -sf localhost/health || (echo "HEALTH FAILED"; exit 1)
+          EOF
+
+      - name: Setup Nginx + Self-Signed SSL
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ secrets.HETZNER_IP }} bash -s << 'EOF'
+          set -e
+          apt-get install -y nginx openssl
+
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /etc/ssl/private/waidblick.key \
+            -out /etc/ssl/certs/waidblick.crt \
+            -subj "/C=DE/ST=Bayern/L=Muenchen/O=Turok GmbH/CN=waidblick-backend"
+
+          cat > /etc/nginx/sites-available/waidblick << 'NGINX'
+          server {
+              listen 80 default_server;
+              return 301 https://$host$request_uri;
+          }
+          server {
+              listen 443 ssl default_server;
+              ssl_certificate /etc/ssl/certs/waidblick.crt;
+              ssl_certificate_key /etc/ssl/private/waidblick.key;
+              location / {
+                  proxy_pass http://127.0.0.1:8080;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+              }
+          }
+          NGINX
+
+          ln -sf /etc/nginx/sites-available/waidblick /etc/nginx/sites-enabled/
+          rm -f /etc/nginx/sites-enabled/default
+          nginx -t && systemctl enable nginx && systemctl restart nginx
+          echo "Nginx+SSL configured!"
           EOF
 
       - name: Verify health
         run: |
-          sleep 3
-          curl -sf http://204.168.216.110/health
+          sleep 5
+          curl -skf https://${{ secrets.HETZNER_IP }}/health || curl -sf http://${{ secrets.HETZNER_IP }}/health
           echo ""
           echo "Deploy successful!"
