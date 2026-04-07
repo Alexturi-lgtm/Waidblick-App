@@ -5,9 +5,8 @@ import 'package:http/http.dart' as http;
 import '../models/age_estimate.dart';
 
 class VisionApiService {
-  // Backend URL — ngrok Tunnel (lokales Backend Port 8900)
-  // TODO: Auf Hetzner umstellen sobald Backend dort deployed
-  static String backendUrl = 'https://crinal-pervertible-colette.ngrok-free.dev';
+  // Backend URL — Hetzner Production Server
+  static String backendUrl = 'http://204.168.216.110';
 
   static Future<AgeEstimate> analyze({
     required Uint8List imageBytes,
