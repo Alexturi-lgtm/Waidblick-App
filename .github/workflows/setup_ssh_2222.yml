@@ -1,0 +1,29 @@
+name: Setup SSH Port 2222
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H 204.168.216.110 >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Add Port 2222 to sshd
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@204.168.216.110 bash << 'ENDSSH'
+          # SSH auf Port 2222 zusätzlich lauschen lassen
+          grep -q "Port 2222" /etc/ssh/sshd_config || echo "Port 2222" >> /etc/ssh/sshd_config
+          systemctl restart sshd
+          echo "SSH Port 2222 aktiv"
+          ss -tlnp | grep sshd
+          ENDSSH
+
+      - name: Verify health
+        run: |
+          curl -sf http://204.168.216.110/health && echo "Backend OK"
