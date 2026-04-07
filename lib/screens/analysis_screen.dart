@@ -2109,6 +2109,27 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               side: const BorderSide(color: WaidblickColors.primary),
             ),
           ),
+          // Nur anzeigen wenn Fotos oder Ergebnis vorhanden
+          if (_photos.isNotEmpty || _latestVisionEstimate != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _resetSession,
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  label: const Text(
+                    'ANALYSE VERWERFEN',
+                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, letterSpacing: 1),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ),
+            ),
           const SizedBox(height: 80), // FAB-Abstand
         ],
       ),

@@ -1,7 +1,7 @@
 name: waidblick
 description: KI-gestützte Wildtier-Altersbestimmung für Jäger
 publish_to: 'none'
-version: 1.6.2+72
+version: 1.6.3+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

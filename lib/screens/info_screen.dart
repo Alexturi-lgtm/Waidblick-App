@@ -329,7 +329,7 @@ class _GamsJagdrechtState extends State<_GamsJagdrecht> {
   int _bl = 0;
 
   static const List<List<List<String>>> _data = [
-    // Bayern
+    // Bayern (index 0)
     [
       [
         'Alle Gams',
@@ -338,7 +338,7 @@ class _GamsJagdrechtState extends State<_GamsJagdrecht> {
         'Sanierungsgebiete OBay: Böcke/Jährl./weibl.≤2J: 1.Feb–31.Jul; Kitze: 1.Feb–31.Mär'
       ],
     ],
-    // Tirol
+    // Tirol (index 1)
     [
       [
         'Alle Gams',
@@ -347,7 +347,7 @@ class _GamsJagdrechtState extends State<_GamsJagdrecht> {
         'Bezirk Lienz: 1. Aug – 31. Dez'
       ],
     ],
-    // Steiermark
+    // Steiermark (index 2)
     [
       [
         'Alle Gams',
@@ -356,13 +356,70 @@ class _GamsJagdrechtState extends State<_GamsJagdrecht> {
         'Keine Klassen-Differenzierung in Hauptregelung'
       ],
     ],
-    // Salzburg
+    // Salzburg (index 3)
     [
       [
         'Alle Gams',
         '16. Jul – 15. Dez',
         '16. Dez – 15. Jul',
         'Maßnahmengebiete (z.B. Kaprun-Fusch): abweichend möglich'
+      ],
+    ],
+    // Brandenburg (index 4)
+    [
+      [
+        'Gamswild',
+        '—',
+        '—',
+        'Gamswild in diesem Bundesland nicht heimisch'
+      ],
+    ],
+    // Thüringen (index 5)
+    [
+      [
+        'Gamswild',
+        '—',
+        '—',
+        'Gamswild in diesem Bundesland nicht heimisch'
+      ],
+    ],
+    // Baden-Württemberg (index 6)
+    [
+      [
+        'Geißen + Kitze',
+        '1. Jul – 31. Dez',
+        '1. Jan – 30. Jun',
+        'Größtes außeralpines Vorkommen DE (~2.000–2.500 Stück, Schwarzwald + Schwäb. Alb)'
+      ],
+      [
+        'Jährlinge',
+        '1. Jul – 31. Jan',
+        '1. Feb – 30. Jun',
+        'Abschussplanung über Hegegemeinschaften'
+      ],
+      [
+        'Böcke',
+        '1. Sep – 31. Jan',
+        '1. Feb – 31. Aug',
+        'Allg. Schonzeit BW: 16. Feb – 15. Apr'
+      ],
+    ],
+    // Niedersachsen (index 7)
+    [
+      [
+        'Gamswild',
+        '—',
+        '—',
+        'Gamswild in diesem Bundesland nicht heimisch'
+      ],
+    ],
+    // Sachsen (index 8)
+    [
+      [
+        'Alle Gams',
+        '1. Aug – 31. Jan',
+        '1. Feb – 31. Jul',
+        'Nur sporadisch im Elbsandsteingebirge (Zuwanderung aus CZ); kein stabiler Bestand'
       ],
     ],
   ];
@@ -550,78 +607,62 @@ class _RehJagdrechtState extends State<_RehJagdrecht> {
   int _bl = 0;
 
   static const List<List<List<String>>> _data = [
-    // Bayern
+    // Bayern (0)
     [
       ['Böcke', '16. Apr – 15. Okt', '16. Okt – 15. Apr', ''],
       ['Schmalrehe', '16. Apr – 15. Jan', '16. Jan – 15. Apr', ''],
       ['Geißen + Kitze', '1. Sep – 15. Jan', '16. Jan – 31. Aug', ''],
     ],
-    // Tirol
+    // Tirol (1)
     [
       ['Bock Kl. I + II', '1. Jun – 31. Okt', '1. Nov – 31. Mai', ''],
-      [
-        'Bock Kl. III + Schmalgeißen',
-        '1. Mai – 31. Dez',
-        '1. Jan – 30. Apr',
-        ''
-      ],
-      [
-        'Führende Geißen + Kitze',
-        '1. Jul – 31. Dez',
-        '1. Jan – 30. Jun',
-        ''
-      ],
+      ['Bock Kl. III + Schmalgeißen', '1. Mai – 31. Dez', '1. Jan – 30. Apr', ''],
+      ['Führende Geißen + Kitze', '1. Jul – 31. Dez', '1. Jan – 30. Jun', ''],
     ],
-    // Steiermark
+    // Steiermark (2)
     [
-      [
-        'Bock Kl. I+II (Lowland)',
-        '16. Mai – 15. Okt',
-        '16. Okt – 15. Mai',
-        'Lowland-Bezirke*'
-      ],
-      [
-        'Bock Kl. III (Lowland)',
-        '16. Apr – 15. Okt',
-        '16. Okt – 15. Apr',
-        'Lowland-Bezirke*'
-      ],
-      [
-        'Bock Kl. I+II (übrige)',
-        '1. Jun – 31. Okt',
-        '1. Nov – 31. Mai',
-        'Übrige Bezirke'
-      ],
-      [
-        'Bock Kl. III (übrige)',
-        '1. Mai – 31. Okt',
-        '1. Nov – 30. Apr',
-        'Übrige Bezirke'
-      ],
-      [
-        'Führ. Geißen + Kitze',
-        '16. Aug – 31. Dez',
-        '1. Jan – 15. Aug',
-        ''
-      ],
+      ['Bock Kl. I+II (Lowland)', '16. Mai – 15. Okt', '16. Okt – 15. Mai', 'Lowland-Bezirke*'],
+      ['Bock Kl. III (Lowland)', '16. Apr – 15. Okt', '16. Okt – 15. Apr', 'Lowland-Bezirke*'],
+      ['Bock Kl. I+II (übrige)', '1. Jun – 31. Okt', '1. Nov – 31. Mai', 'Übrige Bezirke'],
+      ['Bock Kl. III (übrige)', '1. Mai – 31. Okt', '1. Nov – 30. Apr', 'Übrige Bezirke'],
+      ['Führ. Geißen + Kitze', '16. Aug – 31. Dez', '1. Jan – 15. Aug', ''],
     ],
-    // Salzburg
+    // Salzburg (3)
     [
       ['Bock Kl. III', '1. Mai – 31. Okt', '1. Nov – 30. Apr', ''],
       ['Bock Kl. I + II', '1. Jun – 31. Okt', '1. Nov – 31. Mai', ''],
       ['Schmalrehe', '1. Mai – 31. Dez', '1. Jan – 30. Apr', ''],
-      [
-        'Nichtführende Geißen',
-        '1. Mai – 31. Dez',
-        '1. Jan – 30. Apr',
-        ''
-      ],
-      [
-        'Führende Geißen + Kitze',
-        '1. Aug – 31. Dez',
-        '1. Jan – 31. Jul',
-        ''
-      ],
+      ['Nichtführende Geißen', '1. Mai – 31. Dez', '1. Jan – 30. Apr', ''],
+      ['Führende Geißen + Kitze', '1. Aug – 31. Dez', '1. Jan – 31. Jul', ''],
+    ],
+    // Brandenburg (4)
+    [
+      ['Böcke', '1. Mai – 31. Okt', '1. Nov – 30. Apr', 'Eigenverantwortliche Bejagung; kein Pflicht-Abschussplan (seit 2014)'],
+      ['Schmalrehe', '1. Mai – 31. Jan', '1. Feb – 30. Apr', ''],
+      ['Ricken + Kitze', '1. Sep – 31. Jan', '1. Feb – 31. Aug', ''],
+    ],
+    // Thüringen (5)
+    [
+      ['Böcke', '1. Apr – 15. Okt', '16. Okt – 31. Mär', 'Abschussplan Pflicht (dreijährig); Gesellschaftsjagden bis 15. Jan'],
+      ['Schmalrehe', '1. Apr – 15. Jan', '16. Jan – 31. Mär', ''],
+      ['Ricken + Kitze', '1. Sep – 15. Jan', '16. Jan – 31. Aug', ''],
+    ],
+    // Baden-Württemberg (6)
+    [
+      ['Böcke', '1. Mai – 31. Okt', '1. Nov – 30. Apr', 'Kein Pflicht-Abschussplan (seit Apr 2015); Eigenverantwortliche Bejagung'],
+      ['Ricken + Kitze', '1. Okt – 31. Jan', '1. Feb – 30. Sep', ''],
+    ],
+    // Niedersachsen (7)
+    [
+      ['Böcke', '1. Apr – 31. Jan', '1. Feb – 31. Mär', 'Abschussplan Pflicht (dreijährig); Überschreitung +30% erlaubt'],
+      ['Schmalrehe', '1. Apr – 15. Mai + 1. Sep – 31. Jan', '16. Mai – 31. Aug', ''],
+      ['Ricken + Kitze', '1. Sep – 31. Jan', '1. Feb – 31. Aug', ''],
+    ],
+    // Sachsen (8)
+    [
+      ['Böcke', '1. Apr – 31. Okt', '1. Nov – 31. Mär', 'Abschussplan Pflicht; Abschussmeldung innerhalb 1 Woche'],
+      ['Schmalrehe', '1. Apr – 31. Jan', '1. Feb – 31. Mär', ''],
+      ['Ricken + Kitze', '1. Sep – 31. Jan', '1. Feb – 31. Aug', ''],
     ],
   ];
 
@@ -831,65 +872,59 @@ class _RotJagdrechtState extends State<_RotJagdrecht> {
   int _bl = 0;
 
   static const List<List<List<String>>> _data = [
-    // Bayern
+    // Bayern (0)
     [
       ['Kälber', '1. Aug – 31. Jan', '1. Feb – 31. Jul', ''],
       ['Hirsche (alle Kl.)', '1. Aug – 31. Jan', '1. Feb – 31. Jul', ''],
       ['Alttiere', '1. Aug – 31. Jan', '1. Feb – 31. Jul', ''],
-      [
-        'Schmalspießer + Schmaltiere',
-        '1. Jun – 31. Jan',
-        '1. Feb – 31. Mai',
-        ''
-      ],
+      ['Schmalspießer + Schmaltiere', '1. Jun – 31. Jan', '1. Feb – 31. Mai', ''],
     ],
-    // Tirol
+    // Tirol (1)
     [
       ['Hirsch Kl. I', '1. Aug – 15. Nov', '16. Nov – 31. Jul', ''],
       ['Hirsch Kl. II + III', '1. Aug – 31. Dez', '1. Jan – 31. Jul', ''],
-      [
-        'Schmalspießer + Schmaltiere',
-        '1. Mai – 31. Dez',
-        '1. Jan – 30. Apr',
-        ''
-      ],
-      [
-        'Führende Tiere + Kälber',
-        '1. Jul – 31. Dez',
-        '1. Jan – 30. Jun',
-        ''
-      ],
+      ['Schmalspießer + Schmaltiere', '1. Mai – 31. Dez', '1. Jan – 30. Apr', ''],
+      ['Führende Tiere + Kälber', '1. Jul – 31. Dez', '1. Jan – 30. Jun', ''],
     ],
-    // Steiermark
+    // Steiermark (2)
     [
       ['Hirsche Kl. I, II, III', '1. Aug – 31. Dez', '1. Jan – 31. Jul', ''],
-      [
-        'Nichtführende Alttiere',
-        '1. Jun – 31. Dez',
-        '1. Jan – 31. Mai',
-        ''
-      ],
-      [
-        'Schmaltiere + Schmalspießer',
-        '15. Mai – 31. Dez',
-        '1. Jan – 14. Mai',
-        ''
-      ],
-      [
-        'Führende Alttiere + Kälber',
-        '1. Jul – 31. Dez',
-        '1. Jan – 30. Jun',
-        ''
-      ],
+      ['Nichtführende Alttiere', '1. Jun – 31. Dez', '1. Jan – 31. Mai', ''],
+      ['Schmaltiere + Schmalspießer', '15. Mai – 31. Dez', '1. Jan – 14. Mai', ''],
+      ['Führende Alttiere + Kälber', '1. Jul – 31. Dez', '1. Jan – 30. Jun', ''],
     ],
-    // Salzburg
+    // Salzburg (3)
     [
-      [
-        'Rotwild-Zeiten',
-        '—',
-        '—',
-        '⚠️ Bitte bei sbg-jaegerschaft.at aktuell nachschlagen'
-      ],
+      ['Rotwild-Zeiten', '—', '—', '⚠️ Bitte bei sbg-jaegerschaft.at aktuell nachschlagen'],
+    ],
+    // Brandenburg (4)
+    [
+      ['Kälber (AK 0)', '1. Aug – 31. Jan', '1. Feb – 31. Jul', 'Abschussplan Pflicht; AK 0+1 = Mindestabschuss'],
+      ['Schmalspießer/Schmaltiere (AK 1)', '16. Apr – 31. Jan', '1. Feb – 15. Apr', ''],
+      ['Hirsche + Alttiere (AK 2+)', '1. Aug – 31. Jan', '1. Feb – 31. Jul', 'AK 2–4 können zusammengefasst werden'],
+    ],
+    // Thüringen (5)
+    [
+      ['Kälber + Alttiere', '1. Aug – 15. Jan', '16. Jan – 31. Jul', 'Abschussplan Pflicht; ThürHBSchVO-Klassensystem'],
+      ['Schmaltiere + Hirsche 1-j.', '16. Jun – 15. Jan', '16. Jan – 15. Jun', ''],
+      ['Hirsche 2-j. + älter', '1. Aug – 15. Jan', '16. Jan – 31. Jul', 'Kl. III: 20%, Kl. IIb: 10%, Kl. I: Einzelerfassung'],
+    ],
+    // Baden-Württemberg (6)
+    [
+      ['Hirsche + Alttiere', '1. Aug – 31. Jan', '1. Feb – 31. Jul', 'Nur in Rotwildgebieten (~50% Landesfläche); Kl. I/II/III nach Geweihmerkmalen'],
+      ['Kälber', '1. Aug – 31. Jan', '1. Feb – 31. Jul', ''],
+      ['Schmalspießer + Schmaltiere', '1. Mai – 15. Jun + 1. Aug – 31. Jan', '16. Jun – 31. Jul', 'Seit Jan 2026: wandernde Hirsche außerhalb Rotwildgebiete nicht mehr pauschal zu erlegen'],
+    ],
+    // Niedersachsen (7)
+    [
+      ['Hirsche', '1. Aug – 31. Jan', '1. Feb – 31. Jul', 'Abschussplan Pflicht (dreijährig); Überschreitung +30% zulässig'],
+      ['Schmaltiere + Schmalspießer', '1. Mai – 31. Mai + 1. Aug – 31. Jan', '1. Jun – 31. Jul + 1. Feb – 30. Apr', ''],
+      ['Kälber + Alttiere', '1. Sep – 31. Jan', '1. Feb – 31. Aug', 'Rotwild v.a. im Harz, Solling, Niedersächs. Bergland'],
+    ],
+    // Sachsen (8)
+    [
+      ['Hirsche, Alttiere, Kälber', '1. Aug – 31. Jan', '1. Feb – 31. Jul', 'Abschussplan Pflicht (dreijährig); Meldung innerhalb 1 Woche'],
+      ['Schmalspießer + Schmaltiere', '1. Aug – 31. Jan', '1. Feb – 31. Jul', 'AK 0–4 System; AK 0: 40%, AK 4: 10% männl. Abschuss'],
     ],
   ];
 
@@ -1307,47 +1342,85 @@ class _WarnCard extends StatelessWidget {
 class _BundeslandPicker extends StatelessWidget {
   final int selected;
   final ValueChanged<int> onChanged;
-  static const _labels = ['Bayern', 'Tirol', 'Steiermark', 'Salzburg'];
+  static const _labels = [
+    'Bayern', 'Tirol', 'Steiermark', 'Salzburg',
+    'Brandenburg', 'Thüringen', 'Baden-W.', 'Niedersachsen', 'Sachsen',
+  ];
 
   const _BundeslandPicker(
       {required this.selected, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(_labels.length, (i) {
-        final active = i == selected;
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => onChanged(i),
-            child: Container(
-              margin: EdgeInsets.only(right: i < 3 ? 6 : 0),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                color: active
-                    ? _kGold.withOpacity(0.18)
-                    : const Color(0xFF111111),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: active
-                      ? _kGold.withOpacity(0.7)
-                      : _kCardBorder,
+    // Split into two rows: 4 + 5
+    return Column(
+      children: [
+        Row(
+          children: List.generate(4, (i) {
+            final active = i == selected;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => onChanged(i),
+                child: Container(
+                  margin: EdgeInsets.only(right: i < 3 ? 6 : 0, bottom: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: active
+                        ? _kGold.withOpacity(0.18)
+                        : const Color(0xFF111111),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: active ? _kGold.withOpacity(0.7) : _kCardBorder,
+                    ),
+                  ),
+                  child: Text(
+                    _labels[i],
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: active ? _kGold : const Color(0x61FFFFFF),
+                      fontSize: 11,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.normal,
+                    ),
+                  ),
                 ),
               ),
-              child: Text(
-                _labels[i],
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: active ? _kGold : const Color(0x61FFFFFF),
-                  fontSize: 11,
-                  fontWeight:
-                      active ? FontWeight.w700 : FontWeight.normal,
+            );
+          }),
+        ),
+        Row(
+          children: List.generate(5, (j) {
+            final i = j + 4;
+            final active = i == selected;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => onChanged(i),
+                child: Container(
+                  margin: EdgeInsets.only(right: j < 4 ? 6 : 0),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: active
+                        ? _kGold.withOpacity(0.18)
+                        : const Color(0xFF111111),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: active ? _kGold.withOpacity(0.7) : _kCardBorder,
+                    ),
+                  ),
+                  child: Text(
+                    _labels[i],
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: active ? _kGold : const Color(0x61FFFFFF),
+                      fontSize: 10,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.normal,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-        );
-      }),
+            );
+          }),
+        ),
+      ],
     );
   }
 }
