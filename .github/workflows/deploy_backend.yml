@@ -2,6 +2,9 @@ name: Deploy Backend to Hetzner
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['backend/main.py']
 
 jobs:
   deploy:
