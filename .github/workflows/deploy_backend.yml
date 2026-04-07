@@ -28,7 +28,10 @@ jobs:
             root@${{ secrets.HETZNER_IP }}:/tmp/main.py
 
       - name: Deploy
+        env:
+          GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             root@${{ secrets.HETZNER_IP }} \
-            "mkdir -p /opt/waidblick && cp /tmp/main.py /opt/waidblick/main.py && cd /opt/waidblick && python3 -m venv venv 2>/dev/null || true && ./venv/bin/pip install -q fastapi uvicorn python-multipart pillow google-genai python-dotenv openai slowapi httpx PyJWT && printf 'GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}\nOPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}\n' > /opt/waidblick/.env && systemctl restart waidblick && sleep 5 && curl -sf http://127.0.0.1:8080/health && echo deploy_ok"
+            "mkdir -p /opt/waidblick && cp /tmp/main.py /opt/waidblick/main.py && cd /opt/waidblick && python3 -m venv venv 2>/dev/null || true && ./venv/bin/pip install -q fastapi uvicorn python-multipart pillow google-genai python-dotenv openai slowapi httpx PyJWT && printf 'GEMINI_API_KEY=${GEMINI_KEY}\nOPENAI_API_KEY=${OPENAI_KEY}\n' > /opt/waidblick/.env && systemctl restart waidblick && sleep 5 && curl -sf http://127.0.0.1:8080/health && echo deploy_ok"
