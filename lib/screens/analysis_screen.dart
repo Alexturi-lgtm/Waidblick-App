@@ -66,6 +66,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   String _wildartHint = 'auto'; // 'auto', 'gams', 'rehwild', 'rotwild'
   String _detectedRegion = 'Bayern'; // GPS-bestimmte Region
   bool _erlegerbild = false; // Erlegerbild erkannt
+  bool _isApiError = false; // API-Fehler aufgetreten
   DateTime? _exifDate; // EXIF-Datum aus hochgeladenem Foto
   String? _exifDateHint; // Hinweis-Text für UI
   // _multiPhotoCount entfernt (wird nur intern gezählt, kein UI-Feedback nötig)
@@ -170,6 +171,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       _currentPosition = null;
       _latestVisionEstimate = null;
       _erlegerbild = false;
+      _isApiError = false;
       _exifDate = null;
       _exifDateHint = null;
     });
@@ -444,6 +446,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         // Vision-Ergebnis direkt in die Bayes-Engine laden (kein Mock-Overlay)
         _engine.setFromVision(visionEstimate);
         _latestVisionEstimate = visionEstimate;
+        if (mounted) setState(() => _isApiError = false);
 
         // Erlegerbild-Erkennung
         final begr = visionEstimate.begruendung.toLowerCase();
@@ -457,7 +460,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         await FreemiumService.incrementAnalyseCount();
         await _incrementAndCheckQuota();
       } catch (e) {
-        // Nur bei echtem Fehler: Mock als Fallback
+        // Echter API-Fehler: Mock als Fallback + Fehler-Flag setzen
+        if (mounted) setState(() => _isApiError = true);
         final mockResult = await _mlService.analyze(imageBytes);
         _engine.processScores(
             mockResult.scores, mockResult.quality, mockResult.perspective);
@@ -1757,9 +1761,15 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                 color: WaidblickColors.primary.withOpacity(0.6),
                                 width: 1),
                           ),
-                          child: const Text(
-                            'GAMS',
-                            style: TextStyle(
+                          child: Text(
+                            (() {
+                              switch (estimate.wildart) {
+                                case 'rehwild': return 'REHWILD';
+                                case 'rotwild': return 'ROTWILD';
+                                default: return 'GAMS';
+                              }
+                            })(),
+                            style: const TextStyle(
                               color: WaidblickColors.primary,
                               fontWeight: FontWeight.w800,
                               fontSize: 11,
@@ -1958,8 +1968,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             ),
           const SizedBox(height: 16),
 
-          // KI-Analyse: Begründung und Merkmale (aus VisionApiService)
-          if (estimate.begruendung.isNotEmpty) ...[
+          // KI-Analyse: Begründung, Merkmale oder Fehler-Hinweis
+          if (_isApiError || estimate.begruendung.isNotEmpty) ...[
             Container(
               decoration: BoxDecoration(
                 color: WaidblickColors.surface,
@@ -1980,12 +1990,31 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      estimate.begruendung,
-                      style: const TextStyle(
-                          color: WaidblickColors.textSecondary),
-                    ),
-                    if (estimate.merkmale.isNotEmpty) ...[
+                    if (_isApiError)
+                      Row(
+                        children: const [
+                          Icon(Icons.warning_amber_rounded,
+                              color: Color(0xFFEF4444), size: 18),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Analyse nicht verfügbar — bitte erneut versuchen.',
+                              style: TextStyle(
+                                color: Color(0xFFEF4444),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Text(
+                        estimate.begruendung,
+                        style: const TextStyle(
+                            color: WaidblickColors.textSecondary),
+                      ),
+                    if (!_isApiError && estimate.merkmale.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 4,

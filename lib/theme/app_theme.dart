@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class WaidblickColors {
-  static const Color background = Color(0xFF141414);
+  static const Color background = Color(0xFF0A0A0A);
   static const Color surface = Color(0xFF1E1E1E);
   static const Color surfaceVariant = Color(0xFF2A2A2A);
   static const Color primary = Color(0xFFF5A623);

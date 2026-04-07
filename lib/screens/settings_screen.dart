@@ -11,7 +11,7 @@ import 'impressum_screen.dart';
 import 'paywall_screen.dart';
 import 'login_screen.dart';
 
-/// Einstellungs-Screen: Abschussklassen je Wildart und Region
+/// Einstellungs-Screen: Region, Benachrichtigungen, Konto, Datenschutz
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -19,13 +19,11 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _SettingsScreenState extends State<SettingsScreen> {
   HuntingRegion _selectedRegion = HuntingRegion.other;
-  String _gamsRegion = 'Bayern';
   bool _loading = true;
   bool _learningEnabled = false;
+  bool _notificationsEnabled = false;
 
   // Account & Voucher
   String? _userEmail;
@@ -33,20 +31,30 @@ class _SettingsScreenState extends State<SettingsScreen>
   bool _voucherLoading = false;
   final TextEditingController _voucherController = TextEditingController();
 
-  static const List<String> _gamsRegions = [
-    'Bayern',
-    'Tirol',
-    'Salzburg',
-    'Steiermark',
-    'Vorarlberg',
-    'Kärnten',
+  static const List<Map<String, String>> _regionItems = [
+    {'value': 'Bayern', 'label': 'Bayern'},
+    {'value': 'Tirol', 'label': 'Tirol'},
+    {'value': 'Salzburg', 'label': 'Salzburg'},
+    {'value': 'Steiermark', 'label': 'Steiermark'},
+    {'value': 'Vorarlberg', 'label': 'Vorarlberg'},
+    {'value': 'Kärnten', 'label': 'Kärnten'},
+    {'value': 'Sonstige', 'label': 'Sonstige Region'},
   ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _loadSettings();
+  }
+
+  String _regionFromEnum(HuntingRegion r) {
+    switch (r) {
+      case HuntingRegion.bayern: return 'Bayern';
+      case HuntingRegion.tirol: return 'Tirol';
+      case HuntingRegion.salzburg: return 'Salzburg';
+      case HuntingRegion.steiermark: return 'Steiermark';
+      default: return 'Sonstige';
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -58,7 +66,8 @@ class _SettingsScreenState extends State<SettingsScreen>
       final isPremium = await ProfileService.isPremium();
       if (isPremium) {
         final profile = await AuthService.getProfile();
-        final status = profile?['subscription_status'] as String? ?? 'premium';
+        final status =
+            profile?['subscription_status'] as String? ?? 'premium';
         subLabel = status == 'beta' ? 'Beta' : 'Premium';
       }
     } catch (_) {}
@@ -106,7 +115,8 @@ class _SettingsScreenState extends State<SettingsScreen>
         if (expiresRaw != null) {
           try {
             final dt = DateTime.parse(expiresRaw).toLocal();
-            expiresStr = ' bis ${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
+            expiresStr =
+                ' bis ${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
           } catch (_) {}
         }
         _voucherController.clear();
@@ -151,7 +161,6 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   @override
   void dispose() {
-    _tabController.dispose();
     _voucherController.dispose();
     super.dispose();
   }
@@ -159,542 +168,539 @@ class _SettingsScreenState extends State<SettingsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: WaidblickColors.background,
       appBar: AppBar(
-        title: const Text('Einstellungen'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Gamswild'),
-            Tab(text: 'Rehwild'),
-            Tab(text: 'Rotwild'),
-          ],
+        backgroundColor: WaidblickColors.background,
+        elevation: 0,
+        title: const Text(
+          'EINSTELLUNGEN',
+          style: TextStyle(
+            color: WaidblickColors.primary,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 3,
+          ),
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
+          ? const Center(
+              child: CircularProgressIndicator(
+                  color: WaidblickColors.primary))
+          : ListView(
+              padding: const EdgeInsets.all(16),
               children: [
-                // ── Account-Bereich ────────────────────────────────────────
-                if (AuthService.isLoggedIn)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              '👤 Account',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                            const SizedBox(height: 8),
-                            if (_userEmail != null)
-                              Text(
-                                'E-Mail: $_userEmail',
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                const Text('Abo: ',
-                                    style: TextStyle(fontSize: 13)),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: _subscriptionLabel == 'Free'
-                                        ? Colors.grey.withOpacity(0.15)
-                                        : WaidblickColors.primary
-                                            .withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    _subscriptionLabel,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: _subscriptionLabel == 'Free'
-                                          ? Colors.grey
-                                          : WaidblickColors.primary,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    icon: const Icon(Icons.star_outline,
-                                        size: 16),
-                                    label: const Text('Abonnement',
-                                        style: TextStyle(fontSize: 12)),
-                                    onPressed: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) =>
-                                              const PaywallScreen()),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: WaidblickColors.primary,
-                                      side: BorderSide(
-                                          color: WaidblickColors.primary),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 8),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    icon: const Icon(Icons.logout, size: 16),
-                                    label: const Text('Ausloggen',
-                                        style: TextStyle(fontSize: 12)),
-                                    onPressed: _signOut,
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.redAccent,
-                                      side: const BorderSide(
-                                          color: Colors.redAccent),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 8),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // ── Gutschein-Bereich ──────────────────────────────────────
-                if (AuthService.isLoggedIn)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              '🏟️ Gutschein-Code',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _voucherController,
-                                    decoration: InputDecoration(
-                                      hintText: 'Code eingeben',
-                                      hintStyle: TextStyle(
-                                          color: WaidblickColors.textPrimary
-                                              .withOpacity(0.4),
-                                          fontSize: 13),
-                                      filled: true,
-                                      fillColor: WaidblickColors.surface,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 12, vertical: 10),
-                                      border: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8),
-                                        borderSide: BorderSide.none,
-                                      ),
-                                    ),
-                                    style: const TextStyle(fontSize: 13),
-                                    textCapitalization:
-                                        TextCapitalization.characters,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                ElevatedButton(
-                                  onPressed:
-                                      _voucherLoading ? null : _redeemVoucher,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: WaidblickColors.primary,
-                                    foregroundColor: WaidblickColors.background,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8)),
-                                  ),
-                                  child: _voucherLoading
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.white),
-                                        )
-                                      : const Text('Einlösen',
-                                          style: TextStyle(fontSize: 13)),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                const SizedBox(height: 4),
-
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
+                // ── REGION ──────────────────────────────────────────────
+                _SectionHeader(label: 'REGION'),
+                const SizedBox(height: 8),
+                _SettingsCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _GamsTab(
-                        selectedRegion: _gamsRegion,
-                        regions: _gamsRegions,
-                        onRegionChanged: (r) =>
-                            setState(() => _gamsRegion = r!),
+                      const Text(
+                        'Jagdregion',
+                        style: TextStyle(
+                          color: WaidblickColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
                       ),
-                      const _RehwildTab(),
-                      const _RotwildTab(),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Bestimmt die Abschussklassen und Jagdrecht-Hinweise',
+                        style: TextStyle(
+                          color: WaidblickColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: _regionFromEnum(_selectedRegion),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: WaidblickColors.surfaceVariant,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                                color: WaidblickColors.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                                color: WaidblickColors.border),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                        ),
+                        dropdownColor: WaidblickColors.surfaceVariant,
+                        style: const TextStyle(
+                            color: WaidblickColors.textPrimary,
+                            fontSize: 14),
+                        items: _regionItems
+                            .map((r) => DropdownMenuItem<String>(
+                                  value: r['value'],
+                                  child: Text(r['label']!),
+                                ))
+                            .toList(),
+                        onChanged: (val) async {
+                          if (val == null) return;
+                          HuntingRegion region;
+                          switch (val) {
+                            case 'Bayern':
+                              region = HuntingRegion.bayern;
+                              break;
+                            case 'Tirol':
+                              region = HuntingRegion.tirol;
+                              break;
+                            case 'Salzburg':
+                              region = HuntingRegion.salzburg;
+                              break;
+                            case 'Steiermark':
+                              region = HuntingRegion.steiermark;
+                              break;
+                            default:
+                              region = HuntingRegion.other;
+                          }
+                          await SettingsService.setRegion(region);
+                          if (mounted) {
+                            setState(() => _selectedRegion = region);
+                          }
+                        },
+                      ),
                     ],
                   ),
                 ),
-                // Learning Toggle + Impressum Footer
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-                  child: Card(
-                    child: SwitchListTile(
-                      dense: true,
-                      title: const Text(
-                        '🧠 Fotos zum Learning bereitstellen',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                      subtitle: const Text(
-                        'Anonyme Fotos helfen das KI-Modell zu verbessern.',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                      value: _learningEnabled,
-                      onChanged: (v) async {
-                        await SettingsService.setLearningEnabled(v);
-                        if (mounted) setState(() => _learningEnabled = v);
-                      },
-                      activeColor: WaidblickColors.primary,
-                    ),
+                const SizedBox(height: 20),
+
+                // ── BENACHRICHTIGUNGEN ────────────────────────────────────
+                _SectionHeader(label: 'BENACHRICHTIGUNGEN'),
+                const SizedBox(height: 8),
+                _SettingsCard(
+                  child: _ToggleRow(
+                    icon: Icons.notifications_outlined,
+                    title: 'Push-Benachrichtigungen',
+                    subtitle: 'Hinweise zu Jagdzeiten und Updates',
+                    value: _notificationsEnabled,
+                    onChanged: (v) =>
+                        setState(() => _notificationsEnabled = v),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ImpressumScreen()),
+                const SizedBox(height: 20),
+
+                // ── KONTO ─────────────────────────────────────────────────
+                _SectionHeader(label: 'KONTO'),
+                const SizedBox(height: 8),
+                if (AuthService.isLoggedIn) ...[
+                  _SettingsCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: WaidblickColors.primary
+                                    .withOpacity(0.15),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: WaidblickColors.primary
+                                        .withOpacity(0.4)),
+                              ),
+                              child: const Icon(Icons.person_outline,
+                                  color: WaidblickColors.primary, size: 22),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (_userEmail != null)
+                                    Text(
+                                      _userEmail!,
+                                      style: const TextStyle(
+                                        color: WaidblickColors.textPrimary,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: _subscriptionLabel == 'Free'
+                                          ? WaidblickColors.surfaceVariant
+                                          : WaidblickColors.primary
+                                              .withOpacity(0.15),
+                                      borderRadius:
+                                          BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      _subscriptionLabel,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: _subscriptionLabel == 'Free'
+                                            ? WaidblickColors.textSecondary
+                                            : WaidblickColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        const Divider(color: WaidblickColors.border, height: 1),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.star_outline,
+                                    size: 16),
+                                label: const Text('Abonnement',
+                                    style: TextStyle(fontSize: 12)),
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) =>
+                                          const PaywallScreen()),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: WaidblickColors.primary,
+                                  side: const BorderSide(
+                                      color: WaidblickColors.primary),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.logout, size: 16),
+                                label: const Text('Ausloggen',
+                                    style: TextStyle(fontSize: 12)),
+                                onPressed: _signOut,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.redAccent,
+                                  side: const BorderSide(
+                                      color: Colors.redAccent),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      'Impressum',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: WaidblickColors.primary,
-                        decoration: TextDecoration.underline,
+                  ),
+                  const SizedBox(height: 12),
+                  // Gutschein
+                  _SettingsCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '🎟️ Gutschein-Code',
+                          style: TextStyle(
+                            color: WaidblickColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _voucherController,
+                                decoration: InputDecoration(
+                                  hintText: 'Code eingeben',
+                                  hintStyle: const TextStyle(
+                                      color: WaidblickColors.textSecondary,
+                                      fontSize: 13),
+                                  filled: true,
+                                  fillColor: WaidblickColors.surfaceVariant,
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 10),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                        color: WaidblickColors.border),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                        color: WaidblickColors.border),
+                                  ),
+                                ),
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    color: WaidblickColors.textPrimary),
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: _voucherLoading
+                                  ? null
+                                  : _redeemVoucher,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: WaidblickColors.primary,
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(8)),
+                              ),
+                              child: _voucherLoading
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white),
+                                    )
+                                  : const Text('Einlösen',
+                                      style: TextStyle(fontSize: 13)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  _SettingsCard(
+                    child: Center(
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Nicht angemeldet',
+                            style: TextStyle(
+                                color: WaidblickColors.textSecondary,
+                                fontSize: 13),
+                          ),
+                          const SizedBox(height: 8),
+                          OutlinedButton(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const LoginScreen()),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: WaidblickColors.primary,
+                              side: const BorderSide(
+                                  color: WaidblickColors.primary),
+                            ),
+                            child: const Text('Anmelden'),
+                          ),
+                        ],
                       ),
                     ),
                   ),
+                ],
+                const SizedBox(height: 20),
+
+                // ── DATENSCHUTZ ───────────────────────────────────────────
+                _SectionHeader(label: 'DATENSCHUTZ & LEARNING'),
+                const SizedBox(height: 8),
+                _SettingsCard(
+                  child: _ToggleRow(
+                    icon: Icons.psychology_outlined,
+                    title: 'Fotos zum Learning bereitstellen',
+                    subtitle:
+                        'Anonyme Fotos helfen das KI-Modell zu verbessern',
+                    value: _learningEnabled,
+                    onChanged: (v) async {
+                      await SettingsService.setLearningEnabled(v);
+                      if (mounted) setState(() => _learningEnabled = v);
+                    },
+                  ),
                 ),
+                const SizedBox(height: 20),
+
+                // ── IMPRESSUM ─────────────────────────────────────────────
+                _SectionHeader(label: 'RECHTLICHES'),
+                const SizedBox(height: 8),
+                _SettingsCard(
+                  child: Column(
+                    children: [
+                      _TappableRow(
+                        icon: Icons.gavel_outlined,
+                        label: 'Impressum',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ImpressumScreen()),
+                        ),
+                      ),
+                      const Divider(
+                          color: WaidblickColors.border, height: 1),
+                      _TappableRow(
+                        icon: Icons.privacy_tip_outlined,
+                        label: 'Datenschutzerklärung',
+                        onTap: () {
+                          // TODO: Datenschutz-Screen
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
               ],
             ),
     );
   }
 }
 
-// ─── GAMSWILD TAB ─────────────────────────────────────────────────────────────
+// ─── HELPER WIDGETS ───────────────────────────────────────────────────────────
 
-class _GamsTab extends StatelessWidget {
-  final String selectedRegion;
-  final List<String> regions;
-  final ValueChanged<String?> onRegionChanged;
-
-  const _GamsTab({
-    required this.selectedRegion,
-    required this.regions,
-    required this.onRegionChanged,
-  });
-
-  // Returns rows [Klasse, Geschlecht, Alter, Bedeutung]
-  List<List<String>> _getRows() {
-    switch (selectedRegion) {
-      case 'Bayern':
-        return [
-          ['Kl. I', 'Bock+Geiß', '1. LJ', 'Kitze/Kitzböcke'],
-          ['Kl. II', 'Bock+Geiß', '2. LJ', 'Jährlinge'],
-          ['Kl. III', 'Bock+Geiß', '3–7 J', 'Schonklasse'],
-          ['Kl. IV', 'Bock', 'ab 8 J', 'Ernteklasse'],
-          ['Kl. IV', 'Geiß', 'ab 10 J', 'Ernteklasse freigegeben'],
-        ];
-      case 'Tirol':
-        return [
-          ['Kl. III', 'Bock', '1–3 J', 'Jugend'],
-          ['Kl. II', 'Bock', '4–7 J', 'Schonklasse'],
-          ['Kl. I', 'Bock', 'ab 8 J', 'Ernteklasse'],
-          ['Kl. III', 'Geiß', '1–3 J', 'Jugend'],
-          ['Kl. II', 'Geiß', '4–9 J', 'Schonklasse'],
-          ['Kl. I', 'Geiß', 'ab 10 J', 'Ernteklasse'],
-        ];
-      case 'Salzburg':
-        return [
-          ['Kl. III', 'Bock', '1–4 J', 'Jugend'],
-          ['Kl. II', 'Bock', '5–9 J', 'Schonklasse'],
-          ['Kl. I', 'Bock', 'ab 10 J', 'Ernteklasse'],
-          ['Kl. III', 'Geiß', '1–4 J', 'Jugend'],
-          ['Kl. II', 'Geiß', '5–11 J', 'Schonklasse'],
-          ['Kl. I', 'Geiß', 'ab 12 J', 'Ernteklasse'],
-        ];
-      case 'Steiermark':
-        return [
-          ['Kl. III', 'Bock', '1–3 J', 'Jugend'],
-          ['Kl. II', 'Bock', '4–8 J', 'Schonklasse'],
-          ['Kl. I', 'Bock', 'ab 9 J', 'Ernteklasse'],
-          ['Kl. III', 'Geiß', '1–3 J', 'Jugend'],
-          ['Kl. II', 'Geiß', '4–10 J', 'Schonklasse'],
-          ['Kl. I', 'Geiß', 'ab 11 J', 'Ernteklasse'],
-        ];
-      case 'Vorarlberg':
-        return [
-          ['Kitz', 'Bock', '0–1 J', 'Kitz'],
-          ['Kl. III', 'Bock', '2–3 J', 'Jugend'],
-          ['Kl. II', 'Bock', '4–8 J', 'Schonklasse'],
-          ['Kl. I', 'Bock', 'ab 9 J', 'Ernteklasse'],
-          ['Kitz', 'Geiß', '0–1 J', 'Kitz'],
-          ['Kl. III', 'Geiß', '2–3 J', 'Jugend'],
-          ['Kl. II', 'Geiß', '4–12 J', 'Schonklasse'],
-          ['Kl. I', 'Geiß', 'ab 13 J', 'Ernteklasse'],
-        ];
-      case 'Kärnten':
-        return [
-          ['Kl. III', 'Bock', '1–2 J', 'Jugend'],
-          ['Kl. II', 'Bock', '3–7 J', 'Schonklasse'],
-          ['Kl. I', 'Bock', 'ab 8 J', 'Ernteklasse'],
-          ['Kl. III', 'Geiß', '1–3 J', 'Jugend'],
-          ['Kl. II', 'Geiß', '4–11 J', 'Schonklasse'],
-          ['Kl. I', 'Geiß', 'ab 12 J', 'Ernteklasse'],
-        ];
-      default:
-        return [];
-    }
-  }
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  const _SectionHeader({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    final rows = _getRows();
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 2),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: WaidblickColors.textSecondary,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 2,
+        ),
+      ),
+    );
+  }
+}
 
-    return ListView(
-      padding: const EdgeInsets.all(12),
+class _SettingsCard extends StatelessWidget {
+  final Widget child;
+  const _SettingsCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: WaidblickColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0x14FFFFFF),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _ToggleRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _ToggleRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
       children: [
-        // Region-Dropdown
-        DropdownButtonFormField<String>(
-          value: selectedRegion,
-          decoration: InputDecoration(
-            labelText: 'Region wählen',
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8)),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
-          items: regions
-              .map((r) =>
-                  DropdownMenuItem(value: r, child: Text(r)))
-              .toList(),
-          onChanged: onRegionChanged,
-        ),
-        const SizedBox(height: 12),
-        // Abschussklassen-Tabelle
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '📋 Abschussklassen — $selectedRegion',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                _ClassTable(
-                  headers: const ['Klasse', 'Geschlecht', 'Alter', 'Typ'],
-                  rows: rows,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.07),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.blue.withOpacity(0.2)),
-          ),
-          child: const Row(
+        Icon(icon, color: WaidblickColors.textSecondary, size: 22),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.info_outline, color: Colors.blue, size: 16),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Lokale Abschusspläne und Reviervorschriften gehen immer vor.',
-                  style: TextStyle(fontSize: 11, color: Colors.blue),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: WaidblickColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: WaidblickColors.textSecondary,
+                  fontSize: 12,
                 ),
               ),
             ],
           ),
         ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: WaidblickColors.primary,
+        ),
       ],
     );
   }
 }
 
-// ─── REHWILD TAB ─────────────────────────────────────────────────────────────
+class _TappableRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 
-class _RehwildTab extends StatelessWidget {
-  const _RehwildTab();
+  const _TappableRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '📋 Abschussklassen Rehwild',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 14),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Icon(icon,
+                color: WaidblickColors.textSecondary, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: WaidblickColors.textPrimary,
+                  fontSize: 14,
                 ),
-                const SizedBox(height: 8),
-                _ClassTable(
-                  headers: const ['Klasse', 'Bezeichnung', 'Alter', 'Merkmal'],
-                  rows: const [
-                    ['Kitz', 'Kitz', '0–1 J', 'Fleckenkleid'],
-                    ['Jährl. ♂', 'Spießer', '1–2 J', 'Hochläufig, Spieße'],
-                    ['Jährl. ♀', 'Schmalreh', '1–2 J', 'Hochläufig, kein Gehörn'],
-                    ['Kl. II', 'Mittelbock', '2–5 J', 'Schonklasse'],
-                    ['Kl. I', 'Alter Bock', '5+ J', 'Senkrücken'],
-                  ],
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─── ROTWILD TAB ─────────────────────────────────────────────────────────────
-
-class _RotwildTab extends StatelessWidget {
-  const _RotwildTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '📋 Abschussklassen Rotwild',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                _ClassTable(
-                  headers: const ['Klasse', 'Alter', 'Merkmal'],
-                  rows: const [
-                    ['Kalb', '0–1 J', 'Fleckenkleid'],
-                    ['Spießer/Schmaltier', '1–2 J', 'Erste Entwicklung'],
-                    ['Kl. III', '3–5 J (2.–4. Kopf)', 'Junghirsch — schonen!'],
-                    ['Kl. II', '6–9 J (5.–8. Kopf)', 'Mittelhirsch — schonen!'],
-                    ['Kl. I', 'ab 10 J (ab 9. Kopf)', 'Reifer Hirsch'],
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                        color: Colors.amber.withOpacity(0.3)),
-                  ),
-                  child: const Text(
-                    '💡 Tiefland-Hirsche deutlich größer als Alpenraum!',
-                    style: TextStyle(fontSize: 12, color: Colors.amber),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─── HELPER ───────────────────────────────────────────────────────────────────
-
-class _ClassTable extends StatelessWidget {
-  final List<String> headers;
-  final List<List<String>> rows;
-
-  const _ClassTable({required this.headers, required this.rows});
-
-  @override
-  Widget build(BuildContext context) {
-    return Table(
-      border: TableBorder.all(
-        color: Colors.grey.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      defaultColumnWidth: const FlexColumnWidth(),
-      children: [
-        TableRow(
-          decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1)),
-          children: headers
-              .map((h) => _cell(h, bold: true, header: true))
-              .toList(),
-        ),
-        ...rows.map(
-          (row) => TableRow(
-            children: row.map((c) => _cell(c)).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _cell(String text, {bool bold = false, bool header = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: header ? 11 : 12,
-          fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-          color: header ? Colors.grey.shade600 : null,
+            const Icon(Icons.chevron_right,
+                color: WaidblickColors.textSecondary, size: 18),
+          ],
         ),
       ),
     );
