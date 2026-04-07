@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - backend/main.py
+      - .github/workflows/deploy_backend.yml
 
 jobs:
   deploy:
@@ -33,7 +34,9 @@ jobs:
 
       - name: Copy env file
         run: |
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no /tmp/waidblick.env root@${{ secrets.HETZNER_IP }}:/opt/waidblick/.env
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            /tmp/waidblick.env \
+            root@${{ secrets.HETZNER_IP }}:/opt/waidblick/.env
 
       - name: Deploy
         run: |
