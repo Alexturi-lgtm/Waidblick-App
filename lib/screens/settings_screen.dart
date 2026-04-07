@@ -429,8 +429,11 @@ class _GamsTab extends StatelessWidget {
     switch (selectedRegion) {
       case 'Bayern':
         return [
-          ['Kl. II', 'Bock', '1–7 J', 'Schonklasse'],
-          ['Kl. I', 'Bock', 'ab 8 J', 'Ernteklasse'],
+          ['Kl. I', 'Bock+Geiß', '1. LJ', 'Kitze/Kitzböcke'],
+          ['Kl. II', 'Bock+Geiß', '2. LJ', 'Jährlinge'],
+          ['Kl. III', 'Bock+Geiß', '3–7 J', 'Schonklasse'],
+          ['Kl. IV', 'Bock', 'ab 8 J', 'Ernteklasse'],
+          ['Kl. IV', 'Geiß', 'ab 10 J', 'Ernteklasse freigegeben'],
         ];
       case 'Tirol':
         return [
@@ -581,7 +584,8 @@ class _RehwildTab extends StatelessWidget {
                   headers: const ['Klasse', 'Bezeichnung', 'Alter', 'Merkmal'],
                   rows: const [
                     ['Kitz', 'Kitz', '0–1 J', 'Fleckenkleid'],
-                    ['Jährling', 'Schmalreh', '1–2 J', 'Hochläufig'],
+                    ['Jährl. ♂', 'Spießer', '1–2 J', 'Hochläufig, Spieße'],
+                    ['Jährl. ♀', 'Schmalreh', '1–2 J', 'Hochläufig, kein Gehörn'],
                     ['Kl. II', 'Mittelbock', '2–5 J', 'Schonklasse'],
                     ['Kl. I', 'Alter Bock', '5+ J', 'Senkrücken'],
                   ],
@@ -622,9 +626,9 @@ class _RotwildTab extends StatelessWidget {
                   rows: const [
                     ['Kalb', '0–1 J', 'Fleckenkleid'],
                     ['Spießer/Schmaltier', '1–2 J', 'Erste Entwicklung'],
-                    ['Kl. III', '2–4 J', 'Jugendhirsch'],
-                    ['Kl. II', '4–8 J', 'Mittelalter (Schon)'],
-                    ['Kl. I', 'ab 8 J', 'Reifer Hirsch'],
+                    ['Kl. III', '3–5 J (2.–4. Kopf)', 'Junghirsch — schonen!'],
+                    ['Kl. II', '6–9 J (5.–8. Kopf)', 'Mittelhirsch — schonen!'],
+                    ['Kl. I', 'ab 10 J (ab 9. Kopf)', 'Reifer Hirsch'],
                   ],
                 ),
                 const SizedBox(height: 8),

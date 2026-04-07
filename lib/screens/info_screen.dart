@@ -121,7 +121,7 @@ class _GamseTab extends StatelessWidget {
           title: '🐾 Steckbrief',
           child: const Text(
             'Gämse (Rupicapra rupicapra) — Hochgebirgsbewohner der Alpen.\n'
-            'Bock: bis 40 kg, Krucken (nicht Geweih!), Gamsbart am Rücken, Geißbart am Kinn.\n'
+            'Bock: bis 40 kg, Krucken (nicht Geweih!), charakteristischer Gamsbart (lange Rückenhaare am Widerrist).\n'
             'Geiß: kleiner, Krucken feiner. Kitz: Mutterschutz — Geiß mit Kitz NIEMALS erlegen!',
             style: TextStyle(fontSize: 13, height: 1.5),
           ),
@@ -132,7 +132,8 @@ class _GamseTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
-              _Bullet('Windfang (PRIMÄR): jung = schmal/spitz, alt = breit/hängend'),
+              _Bullet('Krucken (PRIMÄR): Jahrringe, Hakenstärke, Kruckenlänge'),
+              _Bullet('Windfang (sekundär): jung = schmal/spitz, alt = breit/hängend'),
               _Bullet('Gesichtszügel: jung = scharf schwarz, alt = verwaschen/fahle Maske'),
               _Bullet('Rückenlinie: gerade = jung, Senkrücken + Hüfthöcker = alt'),
               _Bullet('Flanken: prall = jung, eingefallen = alt'),
@@ -153,11 +154,11 @@ class _GamseTab extends StatelessWidget {
     return _CompactTable(
       headers: const ['Klasse', 'Alter', 'Status'],
       rows: const [
-        ['Kl. V', '1–2 J', 'Kitz/Jährling'],
-        ['Kl. IV', '3–5 J', 'Schonen!'],
-        ['Kl. III', '6–8 J', 'Mittelklasse — schonen!'],
-        ['Kl. II', '9–11 J', 'Grenzbereich'],
-        ['Kl. I', 'ab 12 J', 'Freigegeben'],
+        ['Kl. I', '1. LJ', 'Kitze/Kitzböcke'],
+        ['Kl. II', '2. LJ', 'Jährlinge'],
+        ['Kl. III', '3–7 J', 'Mittlere Gams — schonen!'],
+        ['Kl. IV (Bock)', 'ab 8 J', 'Ernteklasse'],
+        ['Kl. IV (Geiß)', 'ab 10 J', 'Ernteklasse freigegeben'],
       ],
     );
   }
@@ -177,7 +178,7 @@ class _RehwildTab extends StatelessWidget {
           title: '🦌 Steckbrief',
           child: const Text(
             'Rehwild (Capreolus capreolus) — häufigstes Schalenwild.\n'
-            'Bock: Gehörn (nicht Geweih!) mit bis zu 6 Enden. Ricke: kein Gehörn, Pürzel (nicht Wedel!).\n'
+            'Bock: Gehörn (nicht Geweih!) mit bis zu 6, selten 8–10 Enden. Ricke: kein Gehörn, Pürzel (nicht Wedel!).\n'
             'Sommerfell: rotbraun. Winterfell: graubraun. Spiegel: weiß, herzförmig.',
             style: TextStyle(fontSize: 13, height: 1.5),
           ),
@@ -192,7 +193,8 @@ class _RehwildTab extends StatelessWidget {
               _Bullet('Jährling: schlank, Geweih klein/einfach'),
               _Bullet('Kl.II: Mittelbock, normale Proportionen — schonen!'),
               _Bullet('Kl.I: Senkrücken, starkes Blatt, eingefallene Flanken'),
-              _Bullet('Ricke: kein Gehörn, Schnürze unter Spiegel, Pürzel (nicht Gamsbart!)'),
+              _Bullet('Ricke: kein Gehörn, Schnürze unter Spiegel, Pürzel (nicht Wedel!)'),
+
             ],
           ),
         ),
@@ -203,7 +205,8 @@ class _RehwildTab extends StatelessWidget {
             headers: const ['Klasse', 'Bezeichnung', 'Alter', 'Merkmal'],
             rows: const [
               ['Kitz', 'Kitz', '0–1 J', 'Fleckenkleid, Mutterschutz'],
-              ['Jährl.', 'Schmalreh', '1–2 J', 'Hochläufig, Spieße'],
+              ['Jährl. ♂', 'Spießer', '1–2 J', 'Hochläufig, Spieße'],
+              ['Jährl. ♀', 'Schmalreh', '1–2 J', 'Hochläufig, kein Gehörn'],
               ['Kl. II', 'Mittelbock', '2–5 J', 'Schonen! Gehörn im Aufbau'],
               ['Kl. I', 'Alter Bock', '5+ J', 'Senkrücken, starkes Blatt'],
             ],
@@ -256,9 +259,9 @@ class _RotwildTab extends StatelessWidget {
             rows: const [
               ['Kalb', '0–1 J (0 Köpfe)', 'Fleckenkleid, Mutterschutz'],
               ['Schmalsp.', '2. LJ (1. Kopf)', 'Erste Spieße'],
-              ['Kl. III', '3–5 J (2–4. Kopf)', 'Junghirsch — schonen!'],
-              ['Kl. II', '5–8 J (4–7. Kopf)', 'Mittelhirsch — schonen!'],
-              ['Kl. I', 'ab 8 J (ab 7. Kopf)', 'Reifer Hirsch — Ernte'],
+              ['Kl. III', '3–5 J (2.–4. Kopf)', 'Junghirsch — schonen!'],
+              ['Kl. II', '6–9 J (5.–8. Kopf)', 'Mittelhirsch — schonen!'],
+              ['Kl. I', 'ab 10 J (ab 9. Kopf)', 'Reifer Hirsch — Ernte'],
             ],
           ),
         ),
