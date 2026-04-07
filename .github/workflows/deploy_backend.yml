@@ -56,7 +56,7 @@ jobs:
           # Verify import works
           ./venv/bin/python -c "from google import genai; print('genai import OK')"
 
-          printf "GEMINI_API_KEY=AIzaSyDfRrB08ur9TKPudCuHkFFI9lGzhwdg6mU\n" > /opt/waidblick/.env
+          printf "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}\n" > /opt/waidblick/.env
           echo "All dependencies installed OK"
           EOF
 
