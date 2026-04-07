@@ -705,8 +705,32 @@ async def analyze_photo(
     try:
         raw = None
 
-        # Versuche Gemini zuerst
-        if GEMINI_API_KEY:
+        # Versuche OpenAI zuerst (Gemini als Fallback)
+        if OPENAI_API_KEY:
+            try:
+                import openai, base64
+                oai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
+                b64_image = base64.b64encode(image_bytes).decode('utf-8')
+                oai_response = oai_client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": SYSTEM_PROMPT + hint_text},
+                            {"type": "image_url", "image_url": {
+                                "url": f"data:{content_type};base64,{b64_image}"
+                            }},
+                        ]
+                    }],
+                    max_tokens=800,
+                    response_format={"type": "json_object"},
+                )
+                raw = oai_response.choices[0].message.content.strip()
+            except Exception as oai_err:
+                print(f"OpenAI failed: {oai_err}, trying Gemini...")
+
+        # Fallback: Gemini
+        if raw is None and GEMINI_API_KEY:
             try:
                 client = genai.Client(api_key=GEMINI_API_KEY)
                 response = client.models.generate_content(
@@ -735,25 +759,7 @@ async def analyze_photo(
             except Exception as gemini_err:
                 print(f"Gemini failed: {gemini_err}, trying OpenAI...")
 
-        # Fallback: OpenAI GPT-4o Vision
-        if raw is None and OPENAI_API_KEY:
-            import openai, base64
-            oai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
-            b64_image = base64.b64encode(image_bytes).decode('utf-8')
-            oai_response = oai_client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": SYSTEM_PROMPT + hint_text},
-                        {"type": "image_url", "image_url": {
-                            "url": f"data:{content_type};base64,{b64_image}"
-                        }},
-                    ]
-                }],
-                max_tokens=500,
-            )
-            raw = oai_response.choices[0].message.content.strip()
+        # (OpenAI ist jetzt primär, kein zweiter Block nötig)
 
         if raw is None:
             raise ValueError("Kein API-Provider verfügbar")
