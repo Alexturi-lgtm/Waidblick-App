@@ -2,6 +2,10 @@ name: Deploy Backend to Hetzner
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
 
 jobs:
   deploy:
@@ -19,6 +23,7 @@ jobs:
       - name: Copy backend
         run: |
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no backend/main.py root@204.168.216.110:/tmp/main.py
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no datasets/training/gams/broschuere/uebung_*.jpg root@204.168.216.110:/tmp/
 
       - name: Install dependencies
         run: |
