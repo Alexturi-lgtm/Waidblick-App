@@ -7,6 +7,11 @@ import os
 import base64
 import json
 import re
+try:
+    from dotenv import load_dotenv
+    load_dotenv('/opt/waidblick/.env')
+except ImportError:
+    pass
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
