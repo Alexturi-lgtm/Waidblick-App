@@ -735,34 +735,7 @@ async def analyze_photo(
                         ]
                     }],
                     max_tokens=1200,
-                    response_format={
-                        "type": "json_schema",
-                        "json_schema": {
-                            "name": "wildtier_analyse",
-                            "strict": True,
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "wildart": {"type": "string", "enum": ["gams", "rehwild", "rotwild", "kein_wild"]},
-                                    "geschlecht": {"type": "string", "enum": ["maennlich", "weiblich", "unbekannt"]},
-                                    "geschlecht_sicherheit": {"type": "string", "enum": ["hoch", "mittel", "niedrig"]},
-                                    "geschlecht_merkmal": {"type": "string"},
-                                    "alter_jahre": {"type": "number"},
-                                    "alter_stddev": {"type": "number"},
-                                    "altersklasse": {"type": "string", "enum": ["kitz", "jugend", "mittel_jung", "mittel", "alt", "sehr_alt", "unbekannt"]},
-                                    "confidence": {"type": "number"},
-                                    "begruendung": {"type": "string"},
-                                    "scoring": {"type": "object"},
-                                    "gewichteter_score": {"type": ["number", "null"]},
-                                    "bewertung_lesbar": {"type": "string"},
-                                    "jagdlich_relevant": {"type": "boolean"},
-                                    "merkmale": {"type": "array", "items": {"type": "string"}}
-                                },
-                                "required": ["wildart", "geschlecht", "geschlecht_sicherheit", "geschlecht_merkmal", "alter_jahre", "alter_stddev", "altersklasse", "confidence", "begruendung", "scoring", "gewichteter_score", "bewertung_lesbar", "jagdlich_relevant", "merkmale"],
-                                "additionalProperties": False
-                            }
-                        }
-                    },
+                    response_format={"type": "json_object"},
                 )
                 raw = oai_response.choices[0].message.content.strip()
             except Exception as oai_err:
