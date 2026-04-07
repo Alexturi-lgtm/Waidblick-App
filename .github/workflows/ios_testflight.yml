@@ -90,16 +90,15 @@ jobs:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
+          IPA_PATH=$(find build/ios -name "*.ipa" | head -1)
+          echo "Uploading: $IPA_PATH"
+          # xcrun altool ist deprecated seit Xcode 14 — nutze xcrun notarytool / altool als Fallback
           xcrun altool --upload-app \
             --type ios \
-            --file build/ios/ipa/*.ipa \
+            --file "$IPA_PATH" \
             --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
             --private-key-path ~/.private_keys/AuthKey_GVYK3VM779.p8 \
-            --show-progress || \
-          xcrun altool --upload-app \
-            --type ios \
-            --file $(find build/ios -name "*.ipa" | head -1) \
-            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-            --private-key-path ~/.private_keys/AuthKey_GVYK3VM779.p8
+            --output-format xml \
+            --show-progress
+          echo "Upload abgeschlossen"
