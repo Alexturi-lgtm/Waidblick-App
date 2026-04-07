@@ -93,3 +93,70 @@ jobs:
           curl -sf http://204.168.216.110/health
           echo ""
           echo "Deploy successful!"
+
+      - name: Run Gams Prompt Test
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@204.168.216.110 bash -s << 'SSHEOF'
+          python3 << 'PYEOF'
+import subprocess, json, datetime
+
+BILDER = {
+  "uebung_01_02.jpg": [
+    {"nr":"01","eg":"geiss","ek":"altersklasse","ev":12,"eb":13},
+    {"nr":"02","eg":"bock","ek":"jugendklasse","ev":2,"eb":3}
+  ],
+  "uebung_03_04.jpg": [
+    {"nr":"03","eg":"bock","ek":"altersklasse","ev":12,"eb":13},
+    {"nr":"04","eg":"geiss","ek":"altersklasse","ev":14,"eb":15}
+  ],
+  "uebung_05_06.jpg": [
+    {"nr":"05","eg":"bock","ek":"altersklasse","ev":14,"eb":14},
+    {"nr":"06","eg":"bock","ek":"mittelklasse","ev":6,"eb":7}
+  ],
+  "uebung_07_08.jpg": [
+    {"nr":"07","eg":"bock","ek":"altersklasse","ev":9,"eb":10},
+    {"nr":"08","eg":"bock","ek":"jugendklasse","ev":3,"eb":3}
+  ],
+  "uebung_09_10.jpg": [
+    {"nr":"09","eg":"bock","ek":"jugendklasse","ev":3,"eb":3},
+    {"nr":"10","eg":"bock","ek":"jugendklasse","ev":1,"eb":2}
+  ],
+  "uebung_11_12.jpg": [
+    {"nr":"11","eg":"geiss","ek":"mittelklasse","ev":8,"eb":9},
+    {"nr":"12R","eg":"geiss","ek":"mittelklasse","ev":5,"eb":5}
+  ]
+}
+
+results = []
+for datei, labels in BILDER.items():
+  pfad = f"/tmp/{datei}"
+  import os
+  if not os.path.exists(pfad):
+    for l in labels:
+      results.append({"bild":l["nr"],"erwartet":f"{l['eg']},{l['ek']}","ki_g":"BILD FEHLT","ki_k":"?","ki_a":"?","ki_c":"?","bew":"❌ FEHLER","begr":""})
+    continue
+  try:
+    r = subprocess.run(["curl","-s","-X","POST","http://localhost/analyze","-F",f"file=@{pfad}"],capture_output=True,text=True,timeout=60)
+    ki = json.loads(r.stdout.strip())
+  except Exception as e:
+    ki = {"error":str(e)}
+  for l in labels:
+    kg = ki.get("geschlecht","?")
+    kk = ki.get("altersklasse","?")
+    kok = kk == l["ek"]
+    gok = kg == l["eg"] or (l["eg"]=="geiss" and kg in ["geiß","geiss","geiss"])
+    bew = "✅ RICHTIG" if (kok and gok) else ("🟡 TEILWEISE" if (kok or gok) else "❌ FALSCH")
+    results.append({"bild":l["nr"],"erwartet":f"{l['eg']},{l['ek']},{l['ev']}-{l['eb']}J","ki_g":kg,"ki_k":kk,"ki_a":ki.get("alter_jahre","?"),"ki_c":ki.get("confidence","?"),"bew":bew,"begr":(ki.get("begruendung") or "")[:150]})
+
+richtig=sum(1 for r in results if "RICHTIG" in r["bew"])
+total=len(results)
+print(f"\n=== PASS-RATE: {richtig}/{total} ({int(richtig/total*100) if total else 0}%) ===")
+print()
+for r in results:
+  print(f"Bild {r['bild']}: {r['bew']}")
+  print(f"  Erwartet: {r['erwartet']}")
+  print(f"  KI: {r['ki_g']}, {r['ki_k']}, {r['ki_a']}J, conf={r['ki_c']}")
+  print(f"  Begr: {r['begr'][:100]}")
+  print()
+PYEOF
+          SSHEOF
