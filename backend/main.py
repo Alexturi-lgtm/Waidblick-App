@@ -103,6 +103,7 @@ GAMS — GESCHLECHT:
 Primär (100%): Gesäuge→GEISS, Hodensack→BOCK, Harnstrahl nach hinten→GEISS
 Sekundär: Hakenbasis massiv+breiter Träger→BOCK; schlanker Träger+weißer Kehlfleck→GEISS
 WARNUNG: Hakelung allein unzuverlässig! Bockgehakelte Geißen existieren!
+PFLICHT: Du MUSST eine Geschlechtsaussage treffen! "unbekannt" nur wenn Tier von hinten oder Körper vollständig verdeckt. Bei allen anderen Fällen: Sekundärmerkmale nutzen (Träger-Stärke, Körperbau, Kehlfleck).
 
 GAMS — ALTER (Scoring 1-5, Quelle: Deutz/Greßmann/Prem TJV-Broschüre 2021):
 
@@ -122,6 +123,7 @@ SCORE→ALTERSKLASSE (STRIKT nach Broschüre):
 1.0-1.8 → jugend (Jährling-3J): hochläufig, spitzer Windfang, scharfe Zügel, kurzes Haupt
 1.8-2.6 → mittel_jung (3-6J): Mittelklasse, Windfang breiter werdend, Zügel noch klar — SCHONEN!
 2.6-3.4 → mittel (6-10J): Mittelklasse/Grenzbereich, Zügel beginnen zu verwaschen — SCHONEN!
+KRITISCH: Score 3.0-3.4 + Gesichtszügel Score 4+ → trotzdem "alt"! Grenzbereich 9-10J gehört zur Altersklasse!
 3.4-4.2 → alt (10-14J): Altersklasse, stark verwaschene Zügel, Senkrücken, Hüfthöcker
 4.2-5.0 → sehr_alt (15+J): Altersklasse, Zügel vollständig ausgewaschen/weiße Haare, alle Altersmerkmale extrem
 
@@ -722,8 +724,35 @@ async def analyze_photo(
                             }},
                         ]
                     }],
-                    max_tokens=800,
-                    response_format={"type": "json_object"},
+                    max_tokens=1200,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "wildtier_analyse",
+                            "strict": True,
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "wildart": {"type": "string", "enum": ["gams", "rehwild", "rotwild", "kein_wild"]},
+                                    "geschlecht": {"type": "string", "enum": ["maennlich", "weiblich", "unbekannt"]},
+                                    "geschlecht_sicherheit": {"type": "string", "enum": ["hoch", "mittel", "niedrig"]},
+                                    "geschlecht_merkmal": {"type": "string"},
+                                    "alter_jahre": {"type": "number"},
+                                    "alter_stddev": {"type": "number"},
+                                    "altersklasse": {"type": "string", "enum": ["kitz", "jugend", "mittel_jung", "mittel", "alt", "sehr_alt", "unbekannt"]},
+                                    "confidence": {"type": "number"},
+                                    "begruendung": {"type": "string"},
+                                    "scoring": {"type": "object"},
+                                    "gewichteter_score": {"type": ["number", "null"]},
+                                    "bewertung_lesbar": {"type": "string"},
+                                    "jagdlich_relevant": {"type": "boolean"},
+                                    "merkmale": {"type": "array", "items": {"type": "string"}}
+                                },
+                                "required": ["wildart", "geschlecht", "geschlecht_sicherheit", "geschlecht_merkmal", "alter_jahre", "alter_stddev", "altersklasse", "confidence", "begruendung", "scoring", "gewichteter_score", "bewertung_lesbar", "jagdlich_relevant", "merkmale"],
+                                "additionalProperties": False
+                            }
+                        }
+                    },
                 )
                 raw = oai_response.choices[0].message.content.strip()
             except Exception as oai_err:
