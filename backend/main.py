@@ -7,10 +7,7 @@ import os
 import base64
 import json
 import re
-import requests
-from pathlib import Path
-from datetime import date, datetime, timedelta
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request, Header
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -48,20 +45,20 @@ FLUTTER_WEB_DIR = os.path.join(os.path.dirname(__file__),
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://cflfreajuouofuifahsv.supabase.co")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")  # Muss als Env gesetzt werden
 
-SYSTEM_PROMPT = """Du bist WAIDBLICK, KI-Jagdberater. Antworte AUSSCHLIESSLICH mit reinem JSON. Kein Text vor oder nach dem JSON. Keine Erklärungen. Keine Nummerierungen. Nur das JSON-Objekt.
+SYSTEM_PROMPT = """Du bist WAIDBLICK, KI-Jagdberater. Antworte NUR mit JSON.
 
-Denke intern in diesen Schritten (NICHT ausgeben, nur im Kopf):
-1. Was sehe ich im Bild?
-2. Welche Wildart?
-3. Geschlecht?
-4. Altersmerkmale?
-5. Plausibilitätscheck
+DENKPROZESS (Chain-of-Thought — NUR INTERN, NIEMALS ausgeben, direkt zu JSON):
+Durchlaufe diese 5 Schritte NUR im internen Denkprozess. NIEMALS als Text ausgeben. Ergebnis NUR als JSON:
 
-Das Ergebnis dieser internen Überlegung fasst du in 2-4 Sätzen im "begruendung"-Feld zusammen.
+[1-BEOBACHTE] Was sehe ich konkret im Bild? (Tier, Körperhaltung, Licht, Bildqualität, sichtbare Körperteile)
+[2-WILDART] Welche Wildart ist es und warum? (entscheidende Merkmale nennen)
+[3-GESCHLECHT] Welches Geschlecht und wie sicher? (primäre Merkmale nennen, oder: nicht bestimmbar weil...)
+[4-MERKMALE] Welche Altersmerkmale sehe ich? (jeden Scoring-Wert mit konkreter Beobachtung begründen)
+[5-SCHLUSS] Alter und Klasse laut Scoring-Kalibrierung — plausibel? Widersprüche? Konfidenz?
+
 Nur was du wirklich siehst zählt. Nicht raten. Nicht erfinden. Unsichtbare Merkmale → Wert weglassen oder auf 0 setzen.
+Das "begruendung"-Feld enthält die Kurzfassung dieser 5 Schritte (2-4 Sätze, jagdlich präzise).
 
 SCHRITT 0 — GUARD (ZUERST, VOR ALLEM!):
 Prüfe: Ist überhaupt ein Tier sichtbar?
@@ -878,159 +875,6 @@ async def analyze_photo(
         raise HTTPException(status_code=500, detail=f"JSON Parse Fehler: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analyse-Fehler: {str(e)}")
-
-
-@app.post("/redeem-voucher")
-async def redeem_voucher(
-    code: str = Form(...),
-    authorization: str = Header(None)
-):
-    """Löst einen Voucher-Code ein und aktiviert Premium für den Nutzer."""
-    # 1. Supabase JWT validieren → user_id extrahieren
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-    jwt_token = authorization.replace("Bearer ", "")
-
-    # User aus Supabase JWT holen
-    auth_headers = {"Authorization": f"Bearer {jwt_token}", "apikey": SUPABASE_SERVICE_KEY}
-    try:
-        user_resp = requests.get(f"{SUPABASE_URL}/auth/v1/user", headers=auth_headers, timeout=10)
-    except requests.RequestException as e:
-        raise HTTPException(status_code=503, detail=f"Supabase nicht erreichbar: {e}")
-
-    if user_resp.status_code != 200:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    user_data = user_resp.json()
-    user_id = user_data.get("id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="User ID nicht gefunden")
-
-    # 2. Voucher in Supabase prüfen
-    service_headers = {
-        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-        "apikey": SUPABASE_SERVICE_KEY,
-        "Content-Type": "application/json"
-    }
-
-    try:
-        voucher_resp = requests.get(
-            f"{SUPABASE_URL}/rest/v1/vouchers?code=eq.{code}&used_by=is.null",
-            headers=service_headers,
-            timeout=10
-        )
-        vouchers = voucher_resp.json()
-    except requests.RequestException as e:
-        raise HTTPException(status_code=503, detail=f"Supabase nicht erreichbar: {e}")
-    except Exception:
-        raise HTTPException(status_code=500, detail="Fehler beim Lesen der Vouchers")
-
-    if not vouchers or not isinstance(vouchers, list):
-        raise HTTPException(status_code=404, detail="Voucher ungültig oder bereits verwendet")
-
-    voucher = vouchers[0]
-    duration_months = voucher.get("duration_months", 1)
-    now = datetime.utcnow()
-    expires = (now + timedelta(days=30 * duration_months)).isoformat()
-
-    # 3. Voucher als verwendet markieren
-    try:
-        requests.patch(
-            f"{SUPABASE_URL}/rest/v1/vouchers?id=eq.{voucher['id']}",
-            headers=service_headers,
-            json={"used_by": user_id, "used_at": now.isoformat()},
-            timeout=10
-        )
-
-        # 4. Profile updaten
-        requests.patch(
-            f"{SUPABASE_URL}/rest/v1/profiles?id=eq.{user_id}",
-            headers=service_headers,
-            json={
-                "subscription_status": "premium",
-                "subscription_expires": expires,
-                "updated_at": now.isoformat()
-            },
-            timeout=10
-        )
-    except requests.RequestException as e:
-        raise HTTPException(status_code=503, detail=f"Supabase Update fehlgeschlagen: {e}")
-
-    return {"success": True, "expires": expires, "duration_months": duration_months}
-
-
-@app.post("/validate-receipt")
-async def validate_receipt(
-    user_id: str = Form(...),
-    transaction_id: str = Form(...),
-    product_id: str = Form(...),
-    environment: str = Form(default="sandbox")
-):
-    """Validiert einen Apple IAP Receipt und aktualisiert den Subscription-Status.
-    TODO: Apple StoreKit 2 Server API anbinden wenn Key vorhanden.
-    """
-    if not SUPABASE_SERVICE_KEY:
-        raise HTTPException(status_code=503, detail="Service not configured")
-
-    service_headers = {
-        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-        "apikey": SUPABASE_SERVICE_KEY,
-        "Content-Type": "application/json"
-    }
-
-    # Laufzeit je nach Produkt
-    duration_map = {
-        "de.waidblick.premium.monthly": 30,
-        "de.waidblick.premium.yearly": 365,
-        "de.waidblick.lifetime": None  # None = lifetime
-    }
-
-    days = duration_map.get(product_id)
-    now = datetime.utcnow()
-
-    if days is None and "lifetime" in product_id:
-        expires = None
-        status = "lifetime"
-    elif days is not None:
-        expires = (now + timedelta(days=days)).isoformat()
-        status = "premium"
-    else:
-        raise HTTPException(status_code=400, detail=f"Unknown product: {product_id}")
-
-    try:
-        patch_resp = requests.patch(
-            f"{SUPABASE_URL}/rest/v1/profiles?id=eq.{user_id}",
-            headers=service_headers,
-            json={
-                "subscription_status": status,
-                "subscription_expires": expires,
-                "updated_at": now.isoformat()
-            },
-            timeout=10
-        )
-        if patch_resp.status_code not in (200, 204):
-            raise HTTPException(status_code=500, detail="Profil-Update fehlgeschlagen")
-    except requests.RequestException as e:
-        raise HTTPException(status_code=503, detail=f"Supabase nicht erreichbar: {e}")
-
-    return {"success": True, "subscription_status": status, "expires": expires}
-
-
-@app.post("/check-beta")
-async def check_beta(email: str = Form(...)):
-    whitelist_path = Path(__file__).parent / "whitelist.json"
-    if not whitelist_path.exists():
-        return {"status": "denied", "reason": "no_whitelist"}
-    data = json.loads(whitelist_path.read_text())
-    today = date.today().isoformat()
-    for user in data["users"]:
-        if user["email"].lower() == email.lower():
-            if user["expires"] >= today:
-                return {"status": "granted", "expires": user["expires"]}
-            else:
-                return {"status": "expired", "expires": user["expires"]}
-    return {"status": "denied"}
 
 
 # Flutter Web App NACH allen API-Routen mounten (sonst werden API-Routen überschrieben)
