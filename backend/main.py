@@ -710,9 +710,8 @@ async def analyze_photo(
             try:
                 client = genai.Client(api_key=GEMINI_API_KEY)
                 response = client.models.generate_content(
-                    model="gemini-2.5-flash",
+                    model="gemini-2.0-flash",
                     config=types.GenerateContentConfig(
-                        thinking_config=types.ThinkingConfig(thinking_budget=0),
                         temperature=0.1,
                         max_output_tokens=800,
                         response_mime_type="application/json",
