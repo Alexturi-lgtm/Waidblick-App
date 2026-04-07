@@ -643,7 +643,12 @@ async def landing_static(filename: str):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "model": "gemini-2.0-flash"}
+    return {
+        "status": "ok",
+        "model": "gemini-2.0-flash",
+        "openai_key_set": bool(OPENAI_API_KEY),
+        "gemini_key_set": bool(GEMINI_API_KEY)
+    }
 
 
 @app.post("/analyze")
