@@ -1,0 +1,138 @@
+{
+  "quelle": "Deutz/Greßmann/Prem — Gamswild ansprechen, TJV-Broschüre, Seite 50",
+  "testbilder": [
+    {
+      "bild_nr": "01",
+      "datei": "uebung_01_02.jpg",
+      "position": "oben",
+      "geschlecht": "geiß",
+      "altersklasse": "altersklasse",
+      "alter_von": 12,
+      "alter_bis": 13,
+      "schluessel_merkmale": ["breiter Windfang", "breiter Schrank", "massiver Körper"]
+    },
+    {
+      "bild_nr": "02",
+      "datei": "uebung_01_02.jpg",
+      "position": "unten",
+      "geschlecht": "bock",
+      "altersklasse": "jugendklasse",
+      "alter_von": 2,
+      "alter_bis": 3,
+      "schluessel_merkmale": ["kurzes dreieckiges Haupt", "hochläufig"]
+    },
+    {
+      "bild_nr": "03",
+      "datei": "uebung_03_04.jpg",
+      "position": "oben",
+      "geschlecht": "bock",
+      "altersklasse": "altersklasse",
+      "alter_von": 12,
+      "alter_bis": 13,
+      "schluessel_merkmale": ["verwaschene Zügel", "Senkrücken", "Hängebauch"]
+    },
+    {
+      "bild_nr": "04",
+      "datei": "uebung_03_04.jpg",
+      "position": "unten",
+      "geschlecht": "geiß",
+      "altersklasse": "altersklasse",
+      "alter_von": 14,
+      "alter_bis": 15,
+      "schluessel_merkmale": ["kein Pinsel", "starker Träger", "Senkrücken", "Hängebauch"]
+    },
+    {
+      "bild_nr": "05",
+      "datei": "uebung_05_06.jpg",
+      "position": "oben",
+      "geschlecht": "bock",
+      "altersklasse": "altersklasse",
+      "alter_von": 14,
+      "alter_bis": 14,
+      "schluessel_merkmale": ["hervortretender Augenbogen", "verwaschene Zügel", "hoher Windfang"]
+    },
+    {
+      "bild_nr": "06",
+      "datei": "uebung_05_06.jpg",
+      "position": "unten",
+      "geschlecht": "bock",
+      "altersklasse": "mittelklasse",
+      "alter_von": 6,
+      "alter_bis": 7,
+      "schluessel_merkmale": ["noch scharfe Zügel", "spitzer Windfang"]
+    },
+    {
+      "bild_nr": "07",
+      "datei": "uebung_07_08.jpg",
+      "position": "oben",
+      "geschlecht": "bock",
+      "altersklasse": "altersklasse",
+      "alter_von": 9,
+      "alter_bis": 10,
+      "schluessel_merkmale": ["breiter Windfang", "breite Schrank"]
+    },
+    {
+      "bild_nr": "08",
+      "datei": "uebung_07_08.jpg",
+      "position": "unten",
+      "geschlecht": "bock",
+      "altersklasse": "jugendklasse",
+      "alter_von": 3,
+      "alter_bis": 3,
+      "schluessel_merkmale": ["wenig gehakelt", "hochläufig", "Pinselhaare"]
+    },
+    {
+      "bild_nr": "09",
+      "datei": "uebung_09_10.jpg",
+      "position": "oben",
+      "geschlecht": "bock",
+      "altersklasse": "jugendklasse",
+      "alter_von": 3,
+      "alter_bis": 3,
+      "schluessel_merkmale": ["kurzes Haupt", "hochläufig", "Pinselhaare"]
+    },
+    {
+      "bild_nr": "10",
+      "datei": "uebung_09_10.jpg",
+      "position": "unten",
+      "geschlecht": "bock",
+      "altersklasse": "jugendklasse",
+      "alter_von": 1,
+      "alter_bis": 2,
+      "alter_bezeichnung": "Jährling",
+      "schluessel_merkmale": ["kurzes Haupt", "kurze Krucke"]
+    },
+    {
+      "bild_nr": "11",
+      "datei": "uebung_11_12.jpg",
+      "position": "oben",
+      "geschlecht": "geiß",
+      "altersklasse": "mittelklasse",
+      "alter_von": 8,
+      "alter_bis": 9,
+      "schluessel_merkmale": ["Zügel leicht verwaschen", "Windfang schon etwas höher und breiter"]
+    },
+    {
+      "bild_nr": "12_rechts",
+      "datei": "uebung_11_12.jpg",
+      "position": "unten_rechts",
+      "geschlecht": "geiß",
+      "altersklasse": "mittelklasse",
+      "alter_von": 5,
+      "alter_bis": 5,
+      "hinweis": "führend mit Kitz",
+      "schluessel_merkmale": ["noch scharfe Zügel", "spitzer Windfang"]
+    },
+    {
+      "bild_nr": "12_links",
+      "datei": "uebung_11_12.jpg",
+      "position": "unten_links",
+      "geschlecht": "zwitter",
+      "altersklasse": "mittelklasse",
+      "alter_von": 6,
+      "alter_bis": 6,
+      "hinweis": "verhielt sich wie Bock, hatte aber keinen Pinsel, war auffallend stärker und geißkruckig",
+      "schluessel_merkmale": ["kein Pinsel", "geißkruckig", "verhielt sich wie Bock"]
+    }
+  ]
+}

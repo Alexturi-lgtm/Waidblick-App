@@ -1,0 +1,140 @@
+name: Gams Prompt Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Copy test images + run test on server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: 204.168.216.110
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            mkdir -p /tmp/gams_test
+            cat > /tmp/run_test.py << 'PYEOF'
+            import subprocess, json, datetime
+
+            BILDER = {
+              "uebung_01_02.jpg": [
+                {"nr":"01","pos":"oben","erwartet_geschlecht":"geiß","erwartet_klasse":"altersklasse","erwartet_alter_von":12,"erwartet_alter_bis":13},
+                {"nr":"02","pos":"unten","erwartet_geschlecht":"bock","erwartet_klasse":"jugendklasse","erwartet_alter_von":2,"erwartet_alter_bis":3}
+              ],
+              "uebung_03_04.jpg": [
+                {"nr":"03","pos":"oben","erwartet_geschlecht":"bock","erwartet_klasse":"altersklasse","erwartet_alter_von":12,"erwartet_alter_bis":13},
+                {"nr":"04","pos":"unten","erwartet_geschlecht":"geiß","erwartet_klasse":"altersklasse","erwartet_alter_von":14,"erwartet_alter_bis":15}
+              ],
+              "uebung_05_06.jpg": [
+                {"nr":"05","pos":"oben","erwartet_geschlecht":"bock","erwartet_klasse":"altersklasse","erwartet_alter_von":14,"erwartet_alter_bis":14},
+                {"nr":"06","pos":"unten","erwartet_geschlecht":"bock","erwartet_klasse":"mittelklasse","erwartet_alter_von":6,"erwartet_alter_bis":7}
+              ],
+              "uebung_07_08.jpg": [
+                {"nr":"07","pos":"oben","erwartet_geschlecht":"bock","erwartet_klasse":"altersklasse","erwartet_alter_von":9,"erwartet_alter_bis":10},
+                {"nr":"08","pos":"unten","erwartet_geschlecht":"bock","erwartet_klasse":"jugendklasse","erwartet_alter_von":3,"erwartet_alter_bis":3}
+              ],
+              "uebung_09_10.jpg": [
+                {"nr":"09","pos":"oben","erwartet_geschlecht":"bock","erwartet_klasse":"jugendklasse","erwartet_alter_von":3,"erwartet_alter_bis":3},
+                {"nr":"10","pos":"unten","erwartet_geschlecht":"bock","erwartet_klasse":"jugendklasse","erwartet_alter_von":1,"erwartet_alter_bis":2}
+              ],
+              "uebung_11_12.jpg": [
+                {"nr":"11","pos":"oben","erwartet_geschlecht":"geiß","erwartet_klasse":"mittelklasse","erwartet_alter_von":8,"erwartet_alter_bis":9},
+                {"nr":"12R","pos":"unten_rechts","erwartet_geschlecht":"geiß","erwartet_klasse":"mittelklasse","erwartet_alter_von":5,"erwartet_alter_bis":5}
+              ]
+            }
+
+            BILD_DIR = "/opt/waidblick/datasets/training/gams/broschuere"
+            results = []
+
+            for datei, labels in BILDER.items():
+              pfad = f"{BILD_DIR}/{datei}"
+              try:
+                r = subprocess.run(
+                  ["curl", "-s", "-X", "POST", "http://localhost/analyze", "-F", f"file=@{pfad}"],
+                  capture_output=True, text=True, timeout=30
+                )
+                ki = json.loads(r.stdout)
+              except Exception as e:
+                ki = {"error": str(e), "raw": r.stdout[:200] if r else ""}
+              
+              for label in labels:
+                ki_klasse = ki.get("altersklasse","?")
+                ki_geschlecht = ki.get("geschlecht","?")
+                erw_klasse = label["erwartet_klasse"]
+                erw_geschlecht = label["erwartet_geschlecht"]
+                
+                klasse_ok = ki_klasse == erw_klasse
+                geschlecht_ok = ki_geschlecht == erw_geschlecht
+                
+                if klasse_ok and geschlecht_ok:
+                  bewertung = "RICHTIG"
+                elif klasse_ok or geschlecht_ok:
+                  bewertung = "TEILWEISE"
+                else:
+                  bewertung = "FALSCH"
+                
+                results.append({
+                  "bild": label["nr"],
+                  "datei": datei,
+                  "erwartet": f"{erw_geschlecht}, {erw_klasse}, {label['erwartet_alter_von']}-{label['erwartet_alter_bis']}J",
+                  "ki_geschlecht": ki_geschlecht,
+                  "ki_klasse": ki_klasse,
+                  "ki_alter": ki.get("alter_jahre","?"),
+                  "ki_confidence": ki.get("confidence","?"),
+                  "ki_begruendung": ki.get("begruendung","?")[:150] if ki.get("begruendung") else "?",
+                  "bewertung": bewertung,
+                  "fehler": "" if not ki.get("error") else ki["error"]
+                })
+
+            richtig = sum(1 for r in results if r["bewertung"]=="RICHTIG")
+            teilweise = sum(1 for r in results if r["bewertung"]=="TEILWEISE")
+            falsch = sum(1 for r in results if r["bewertung"]=="FALSCH")
+            total = len(results)
+
+            report = f"# Gams Prompt Test — {datetime.date.today()}\n\n"
+            report += f"## Zusammenfassung\n"
+            report += f"- **Pass-Rate:** {richtig}/{total} ({int(richtig/total*100)}%)\n"
+            report += f"- **Teilweise:** {teilweise}/{total}\n"
+            report += f"- **Falsch:** {falsch}/{total}\n\n"
+            report += "## Detailergebnisse\n\n"
+            report += "| Bild | Erwartet | KI Geschlecht | KI Klasse | KI Alter | Confidence | Bewertung |\n"
+            report += "|------|----------|---------------|-----------|----------|------------|-----------|\n"
+            for r in results:
+              report += f"| {r['bild']} | {r['erwartet']} | {r['ki_geschlecht']} | {r['ki_klasse']} | {r['ki_alter']} | {r['ki_confidence']} | {r['bewertung']} |\n"
+            
+            report += "\n## KI-Begründungen\n\n"
+            for r in results:
+              report += f"### Bild {r['bild']} — {r['bewertung']}\n"
+              report += f"**Erwartet:** {r['erwartet']}\n"
+              report += f"**KI:** {r['ki_geschlecht']}, {r['ki_klasse']}, {r['ki_alter']}J, Confidence: {r['ki_confidence']}\n"
+              report += f"**Begründung:** {r['ki_begruendung']}\n\n"
+
+            with open("/tmp/gams_test_report.md", "w") as f:
+              f.write(report)
+            print(report)
+            PYEOF
+            python3 /tmp/run_test.py
+
+      - name: Fetch report and commit
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: 204.168.216.110
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: "/tmp/gams_test_report.md"
+          target: "reports/test/"
+          strip_components: 2
+
+      - name: Commit report
+        run: |
+          git config user.email "tinkerbelli@waidblick.de"
+          git config user.name "Tinkerbelli"
+          git add reports/test/gams_test_report.md || true
+          git commit -m "test: Gams Prompt Testlauf Ergebnisse" || echo "Nichts zu committen"
+          git push origin main || echo "Push fehlgeschlagen"
