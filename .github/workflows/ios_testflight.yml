@@ -85,36 +85,18 @@ jobs:
             --build-number=$GITHUB_RUN_NUMBER \
             --export-options-plist=ios/ExportOptions.plist
 
-      - name: Create App Store Connect API Key JSON
-        env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-        run: |
-          mkdir -p ~/.private_keys
-          cat > ~/.private_keys/api_key.json << EOF
-          {
-            "key_id": "$APP_STORE_CONNECT_API_KEY_ID",
-            "issuer_id": "$APP_STORE_CONNECT_ISSUER_ID",
-            "key": "$(cat ~/.private_keys/AuthKey_GVYK3VM779.p8 | tr -d '\n')",
-            "in_house": false,
-            "is_key_content_base64": false
-          }
-          EOF
-
-      - name: Upload & Distribute via Fastlane Pilot
+      - name: Upload to TestFlight
         env:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           IPA_PATH=$(find build/ios -name "*.ipa" | head -1)
           echo "Uploading: $IPA_PATH"
-
-          # Fastlane pilot upload + automatisch zur internen Gruppe hinzufügen
-          fastlane pilot upload \
-            --ipa "$IPA_PATH" \
-            --api_key_path ~/.private_keys/api_key.json \
-            --skip_waiting_for_build_processing true \
-            --distribute_external false \
-            --notify_external_testers false
-
-          echo "Upload + interne Verteilung abgeschlossen"
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA_PATH" \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --private-key-path ~/.private_keys/AuthKey_GVYK3VM779.p8 \
+            --show-progress
+          echo "Upload abgeschlossen"
