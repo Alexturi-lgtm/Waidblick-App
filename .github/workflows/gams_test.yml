@@ -146,3 +146,4 @@ PYEOF
           git add reports/test/gams_test_report.md
           git commit -m "test: Gams Prompt Testlauf $(date '+%Y-%m-%d')" || echo "Nichts zu committen"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Alexturi-lgtm/Waidblick-App.git main
+
