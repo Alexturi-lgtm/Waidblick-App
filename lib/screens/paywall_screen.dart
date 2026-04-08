@@ -26,7 +26,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
   String _monthlyPrice = '12,99\u00a0€/Monat';
   String _yearlyPrice = '99\u00a0€/Jahr';
 
-  static const String _backendUrl = 'http://204.168.216.110';
+  static const String _backendUrl = 'https://178.104.159.28';
 
   @override
   void initState() {

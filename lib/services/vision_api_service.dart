@@ -1,12 +1,14 @@
 import 'dart:math';
 import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import '../models/age_estimate.dart';
 
 class VisionApiService {
   // Backend URL — Hetzner Production Server
-  static String backendUrl = 'http://204.168.216.110';
+  static String backendUrl = 'https://178.104.159.28';
 
   static Future<AgeEstimate> analyze({
     required Uint8List imageBytes,
@@ -16,9 +18,12 @@ class VisionApiService {
     AgeEstimate? previousEstimate, // für Bayes-Update
   }) async {
     try {
+      // Self-signed SSL: badCertificateCallback erlauben
+      final httpClient = HttpClient()
+        ..badCertificateCallback = (cert, host, port) => true;
+      final ioClient = IOClient(httpClient);
       final request = http.MultipartRequest(
           'POST', Uri.parse('$backendUrl/analyze'));
-      // Hetzner Server
       request.headers.addAll({'Content-Type': 'multipart/form-data'});
       request.fields['wildart_hint'] = wildartHint;
       request.fields['region'] = region;
@@ -29,7 +34,7 @@ class VisionApiService {
       ));
 
       final response =
-          await request.send().timeout(const Duration(seconds: 60));
+          await ioClient.send(request).timeout(const Duration(seconds: 90));
       final body = await response.stream.bytesToString();
 
       if (response.statusCode != 200) {
