@@ -16,14 +16,41 @@ class ProbabilityBars extends StatelessWidget {
     this.animated = true,
   });
 
+  /// Wildart-spezifisches Label für weibliches Tier
+  static String _weiblichLabel(String wildart) {
+    switch (wildart) {
+      case 'rehwild': return 'Weiblich (Ricke)';
+      case 'rotwild': return 'Weiblich (Tier)';
+      default:        return 'Weiblich (Geiß)';  // Gams
+    }
+  }
+
+  /// Wildart-spezifisches Label für männliches Tier
+  static String _maennlichLabel(String wildart) {
+    switch (wildart) {
+      case 'rotwild': return 'Männlich (Hirsch)';
+      default:        return 'Männlich (Bock)';  // Gams + Rehwild
+    }
+  }
+
+  /// Wildart-Name für Anzeige
+  static String _wildartName(String wildart) {
+    switch (wildart) {
+      case 'rehwild': return 'Rehwild';
+      case 'rotwild': return 'Rotwild';
+      case 'kein_wild': return 'Kein Schalenwild';
+      default: return 'Gams';
+    }
+  }
+
   /// Geschlecht als lesbaren String
-  static String _sexLabel(double pBock, double pGeis, double pUnsicher, String geschlechtSicherheit) {
+  static String _sexLabel(double pBock, double pGeis, double pUnsicher, String geschlechtSicherheit, String wildart) {
     // Geschlecht unbestimmbar: Sicherheit niedrig oder alle Werte ähnlich (~33%)
     final maxProb = [pBock, pGeis, pUnsicher].reduce((a, b) => a > b ? a : b);
     if (geschlechtSicherheit == 'niedrig' || maxProb < 0.45) return 'Geschlecht unbekannt';
     if (pUnsicher > 0.5) return 'Unbekannt';
-    if (pBock > pGeis) return 'Männlich (Bock)';
-    return 'Weiblich (Geiß)';
+    if (pBock > pGeis) return _maennlichLabel(wildart);
+    return _weiblichLabel(wildart);
   }
 
   static double _dominantSexProb(double pBock, double pGeis, double pUnsicher, String geschlechtSicherheit) {
@@ -43,7 +70,7 @@ class ProbabilityBars extends StatelessWidget {
     // ── Hauptergebnis ──────────────────────────────────────────────
     final domProb = estimate.dominantProbability;
     final sexLabel = _sexLabel(
-        estimate.pBock, estimate.pGeis, estimate.pUnsicher, estimate.geschlechtSicherheit);
+        estimate.pBock, estimate.pGeis, estimate.pUnsicher, estimate.geschlechtSicherheit, estimate.wildart);
     final sexProb = _dominantSexProb(
         estimate.pBock, estimate.pGeis, estimate.pUnsicher, estimate.geschlechtSicherheit);
     final meanAge = estimate.meanAge;
@@ -80,7 +107,7 @@ class ProbabilityBars extends StatelessWidget {
                       color: WaidblickColors.primary, size: 20),
                   const SizedBox(width: 6),
                   Text(
-                    'Gams, $sexLabel',
+                    '${_wildartName(estimate.wildart)}, $sexLabel',
                     style: const TextStyle(
                       color: WaidblickColors.primary,
                       fontWeight: FontWeight.bold,
@@ -273,9 +300,9 @@ class ProbabilityBars extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        _sexBar(context, 'Männlich (Bock)', estimate.pBock,
+        _sexBar(context, _maennlichLabel(estimate.wildart), estimate.pBock,
             const Color(0xFF4A9EFF)),
-        _sexBar(context, 'Weiblich (Geiß)', estimate.pGeis,
+        _sexBar(context, _weiblichLabel(estimate.wildart), estimate.pGeis,
             const Color(0xFFE879A0)),
         _sexBar(context, 'Unbekannt', estimate.pUnsicher,
             WaidblickColors.textSecondary),
