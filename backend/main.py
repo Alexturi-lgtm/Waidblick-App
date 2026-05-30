@@ -720,65 +720,80 @@ async def analyze_photo(
 
     try:
         raw = None
+        last_err = None
+        prompt_full = SYSTEM_PROMPT + hint_text
 
-        # Versuche OpenAI zuerst (Gemini als Fallback)
+        def _try_openai():
+            import openai, base64
+            oai_client = openai.OpenAI(api_key=OPENAI_API_KEY, timeout=40)
+            b64_image = base64.b64encode(image_bytes).decode('utf-8')
+            oai_response = oai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt_full},
+                        {"type": "image_url", "image_url": {
+                            "url": f"data:{content_type};base64,{b64_image}"
+                        }},
+                    ]
+                }],
+                max_tokens=1200,
+                response_format={"type": "json_object"},
+            )
+            return oai_response.choices[0].message.content.strip()
+
+        def _try_gemini():
+            client = genai.Client(api_key=GEMINI_API_KEY)
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                config=types.GenerateContentConfig(
+                    temperature=0.1,
+                    max_output_tokens=1200,
+                    response_mime_type="application/json",
+                ),
+                contents=[
+                    types.Content(
+                        role="user",
+                        parts=[
+                            types.Part(
+                                inline_data=types.Blob(
+                                    mime_type=content_type,
+                                    data=image_bytes,
+                                )
+                            ),
+                            types.Part(text=prompt_full),
+                        ],
+                    )
+                ],
+            )
+            text = (response.text or "").strip()
+            if not text:
+                raise ValueError("Gemini: leere Antwort")
+            return text
+
+        # Robuster Fallback: OpenAI -> Gemini -> Gemini-Retry -> OpenAI-Retry
+        attempts = []
         if OPENAI_API_KEY:
+            attempts.append(("openai", _try_openai))
+        if GEMINI_API_KEY:
+            attempts.append(("gemini", _try_gemini))
+            attempts.append(("gemini-retry", _try_gemini))
+        if OPENAI_API_KEY:
+            attempts.append(("openai-retry", _try_openai))
+
+        for _name, _fn in attempts:
+            if raw:
+                break
             try:
-                import openai, base64
-                oai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
-                b64_image = base64.b64encode(image_bytes).decode('utf-8')
-                oai_response = oai_client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[{
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": SYSTEM_PROMPT + hint_text},
-                            {"type": "image_url", "image_url": {
-                                "url": f"data:{content_type};base64,{b64_image}"
-                            }},
-                        ]
-                    }],
-                    max_tokens=1200,
-                    response_format={"type": "json_object"},
-                )
-                raw = oai_response.choices[0].message.content.strip()
-            except Exception as oai_err:
-                print(f"OpenAI failed: {oai_err}, trying Gemini...")
+                raw = _fn()
+                print(f"Provider OK: {_name}")
+            except Exception as _e:
+                last_err = f"{_name}: {_e}"
+                print(f"Provider {_name} failed: {_e}")
 
-        # Fallback: Gemini
-        if raw is None and GEMINI_API_KEY:
-            try:
-                client = genai.Client(api_key=GEMINI_API_KEY)
-                response = client.models.generate_content(
-                    model="gemini-2.0-flash",
-                    config=types.GenerateContentConfig(
-                        temperature=0.1,
-                        max_output_tokens=800,
-                        response_mime_type="application/json",
-                    ),
-                    contents=[
-                        types.Content(
-                            role="user",
-                            parts=[
-                                types.Part(
-                                    inline_data=types.Blob(
-                                        mime_type=content_type,
-                                        data=image_bytes,
-                                    )
-                                ),
-                                types.Part(text=SYSTEM_PROMPT + hint_text),
-                            ],
-                        )
-                    ],
-                )
-                raw = response.text.strip()
-            except Exception as gemini_err:
-                print(f"Gemini failed: {gemini_err}, trying OpenAI...")
-
-        # (OpenAI ist jetzt primär, kein zweiter Block nötig)
-
-        if raw is None:
-            raise ValueError("Kein API-Provider verfügbar")
+        if not raw:
+            raise ValueError(f"Alle KI-Provider nicht verfuegbar (Retry erschoepft). {last_err}")
 
         # JSON extrahieren — robuster Parser für CoT-Output
         # Gemini gibt manchmal Text vor/nach JSON aus
