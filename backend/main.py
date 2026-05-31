@@ -649,7 +649,7 @@ async def landing_static(filename: str):
 async def health():
     return {
         "status": "ok",
-        "model": "gemini-2.0-flash",
+        "model": "gemini-2.5-flash",
         "openai_key_set": bool(OPENAI_API_KEY),
         "gemini_key_set": bool(GEMINI_API_KEY)
     }
@@ -738,7 +738,7 @@ async def analyze_photo(
                         }},
                     ]
                 }],
-                max_tokens=1200,
+                max_tokens=4096,
                 response_format={"type": "json_object"},
             )
             return oai_response.choices[0].message.content.strip()
@@ -746,10 +746,10 @@ async def analyze_photo(
         def _try_gemini():
             client = genai.Client(api_key=GEMINI_API_KEY)
             response = client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-2.5-flash",
                 config=types.GenerateContentConfig(
                     temperature=0.1,
-                    max_output_tokens=1200,
+                    max_output_tokens=8192,
                     response_mime_type="application/json",
                 ),
                 contents=[
