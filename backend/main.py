@@ -51,6 +51,29 @@ FLUTTER_WEB_DIR = os.path.join(os.path.dirname(__file__),
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
+# ── Globales Tages-Budget: Kostenschutz gegen Vision-API-Kostenexplosion ──
+# Per-IP-Rate-Limit (slowapi) bremst Einzel-Clients; dieser globale Zähler
+# riegelt die GESAMTEN Vision-Calls pro Tag ab (Notbremse für die Rechnung).
+import threading
+from datetime import date as _date
+DAILY_VISION_BUDGET = int(os.environ.get("DAILY_VISION_BUDGET", "2000"))
+_budget_lock = threading.Lock()
+_budget_state = {"date": None, "count": 0}
+
+def check_and_increment_budget():
+    """Zählt Vision-Calls pro Tag global. Hebt HTTPException(503) bei Limit."""
+    with _budget_lock:
+        today = _date.today().isoformat()
+        if _budget_state["date"] != today:
+            _budget_state["date"] = today
+            _budget_state["count"] = 0
+        if _budget_state["count"] >= DAILY_VISION_BUDGET:
+            raise HTTPException(
+                status_code=503,
+                detail="Tageskontingent der Bildanalyse erreicht. Bitte morgen erneut versuchen.",
+            )
+        _budget_state["count"] += 1
+
 SYSTEM_PROMPT = """Du bist WAIDBLICK, KI-Jagdberater. Antworte NUR mit JSON.
 
 MEHRERE TIERE IM BILD: Falls du mehrere Tiere siehst → analysiere IMMER NUR DAS ÄLTESTE/AUFFÄLLIGSTE Tier! Ignoriere Jungtiere und Kitze wenn ein ausgewachsenes Tier im Bild ist. Analysiere niemals einen Durchschnitt!
@@ -647,12 +670,26 @@ async def landing_static(filename: str):
 
 @app.get("/health")
 async def health():
+    with _budget_lock:
+        _today = _date.today().isoformat()
+        _used = _budget_state["count"] if _budget_state["date"] == _today else 0
     return {
         "status": "ok",
         "model": "gemini-2.5-flash",
         "openai_key_set": bool(OPENAI_API_KEY),
-        "gemini_key_set": bool(GEMINI_API_KEY)
+        "gemini_key_set": bool(GEMINI_API_KEY),
+        "vision_budget_daily": DAILY_VISION_BUDGET,
+        "vision_used_today": _used,
+        "vision_remaining_today": max(0, DAILY_VISION_BUDGET - _used),
     }
+
+@app.get("/datenschutz")
+async def datenschutz_page():
+    return FileResponse(os.path.join(LANDING_DIR, "datenschutz.html"), media_type="text/html")
+
+@app.get("/impressum")
+async def impressum_page():
+    return FileResponse(os.path.join(LANDING_DIR, "impressum.html"), media_type="text/html")
 
 
 @app.post("/analyze")
@@ -667,6 +704,9 @@ async def analyze_photo(
 ):
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not set")
+
+    # Globales Tages-Budget prüfen (Kostenschutz) BEVOR teurer Vision-Call läuft
+    check_and_increment_budget()
 
     image_bytes = await file.read()
     if len(image_bytes) < 1000:
