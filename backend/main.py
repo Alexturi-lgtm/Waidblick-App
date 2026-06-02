@@ -980,10 +980,14 @@ async def analyze_photo(
                         "scoring": result.get("scoring", {}),
                         "region": region,
                         "timestamp": ts,
-                        "label": label
+                        "label": label,
+                        "sample_id": f"{ts}_{h}",
+                        "saved_dir": f"{wildart}/{altersklasse}",
+                        "verified": False
                     }, f, indent=2)
                 
                 result["_training_saved"] = True
+                result["sample_id"] = f"{ts}_{h}"
             except Exception as e:
                 result["_training_saved"] = False
 
@@ -993,6 +997,44 @@ async def analyze_photo(
         raise HTTPException(status_code=500, detail=f"JSON Parse Fehler: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analyse-Fehler: {str(e)}")
+
+
+@app.post("/feedback")
+@limiter.limit("30/minute")
+async def submit_feedback(
+    request: Request,
+    sample_id: str = Form(...),
+    is_correct: str = Form(...),            # "true" = Analyse war korrekt
+    wildart: str = Form(default=""),        # echte Wildart (Korrektur)
+    geschlecht: str = Form(default=""),     # echtes Geschlecht
+    alter_jahre: str = Form(default=""),    # echtes Alter (z.B. nach Zahnschliff)
+    altersklasse: str = Form(default=""),
+    methode: str = Form(default=""),        # "zahnschliff" | "erleger" | "sicht"
+):
+    """Verifiziertes Nutzer-Feedback (Ground Truth) zu einer frueheren Analyse.
+    Wird als Korrektur-Datei unter datasets/feedback/ abgelegt und macht die
+    gesammelten Bilder erst als Trainingsdaten wertvoll."""
+    import datetime, json as _json, re
+    if not re.fullmatch(r"[0-9]{8}_[0-9]{6}_[0-9a-f]{8}", sample_id):
+        raise HTTPException(status_code=400, detail="Ungueltige sample_id")
+    fb_dir = os.path.join(os.path.dirname(__file__), "../../../datasets/feedback")
+    os.makedirs(fb_dir, exist_ok=True)
+    record = {
+        "sample_id": sample_id,
+        "is_correct": is_correct == "true",
+        "korrektur": {
+            "wildart": wildart or None,
+            "geschlecht": geschlecht or None,
+            "alter_jahre": float(alter_jahre) if alter_jahre else None,
+            "altersklasse": altersklasse or None,
+        },
+        "methode": methode or None,
+        "timestamp": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "verified": True,
+    }
+    with open(os.path.join(fb_dir, f"{sample_id}.json"), "w") as f:
+        _json.dump(record, f, indent=2, ensure_ascii=False)
+    return {"status": "ok", "sample_id": sample_id}
 
 
 # Flutter Web App NACH allen API-Routen mounten (sonst werden API-Routen überschrieben)
