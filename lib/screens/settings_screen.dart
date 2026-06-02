@@ -36,6 +36,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // App-Toggles
   bool _notificationsEnabled = false;
   bool _gpsAutoEnabled = false;
+  bool _trainingConsent = false;
 
   // Rechtliches
   String _appVersion = '1.0.0';
@@ -48,6 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadAll() async {
     final region = await SettingsService.getRegion();
+    final trainingConsent = await SettingsService.getTrainingConsent();
     final email = AuthService.currentUser?.email;
     bool premium = false;
     String? username;
@@ -79,6 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) {
       setState(() {
         _selectedRegion = region;
+        _trainingConsent = trainingConsent;
         _userEmail = email;
         _username = username;
         _isPremium = premium;
@@ -593,6 +596,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Standort bei Analysen automatisch ermitteln',
             value: _gpsAutoEnabled,
             onChanged: (v) => setState(() => _gpsAutoEnabled = v),
+          ),
+          Divider(color: Colors.white.withOpacity(0.08), height: 1),
+          _ToggleRow(
+            icon: Icons.school_outlined,
+            title: 'KI-Training unterstützen',
+            subtitle:
+                'Anonyme Freigabe deiner Fotos zur Verbesserung der Erkennung. Jederzeit abschaltbar.',
+            value: _trainingConsent,
+            onChanged: (v) async {
+              setState(() => _trainingConsent = v);
+              await SettingsService.setTrainingConsent(v);
+            },
           ),
         ],
       ),

@@ -16,6 +16,7 @@ class VisionApiService {
     required String region, // 'steiermark', 'tirol', 'bayern', etc.
     required int photoCount,
     AgeEstimate? previousEstimate, // für Bayes-Update
+    bool trainingConsent = false, // Nutzer hat KI-Training freigegeben
   }) async {
     try {
       // Self-signed SSL: badCertificateCallback erlauben
@@ -27,6 +28,10 @@ class VisionApiService {
       request.headers.addAll({'Content-Type': 'multipart/form-data'});
       request.fields['wildart_hint'] = wildartHint;
       request.fields['region'] = region;
+      if (trainingConsent) {
+        // Nur mit Einwilligung: Backend gibt dann eine sample_id zurück
+        request.fields['training_consent'] = 'true';
+      }
       request.files.add(http.MultipartFile.fromBytes(
         'file',
         imageBytes,
@@ -89,6 +94,8 @@ class VisionApiService {
     final gewichteterScore = (json['gewichteter_score'] as num?)?.toDouble();
     final geschlechtMerkmal = json['geschlecht_merkmal'] as String? ?? '';
     final geschlechtSicherheit = json['geschlecht_sicherheit'] as String? ?? 'niedrig';
+    // Nur vorhanden, wenn training_consent=true gesendet wurde
+    final sampleId = json['sample_id'] as String?;
 
     // Bayes-Update: wenn vorherige Schätzung vorhanden, gewichtet zusammenführen
     double finalMean = alterJahre;
@@ -134,7 +141,45 @@ class VisionApiService {
       gewichteterScore: gewichteterScore,
       geschlechtMerkmal: geschlechtMerkmal,
       geschlechtSicherheit: geschlechtSicherheit,
+      sampleId: sampleId,
     );
+  }
+
+  /// Sendet Ground-Truth-Feedback zu einer analysierten Probe an das Backend.
+  /// Gibt true bei Erfolg zurück, false bei jedem Fehler.
+  static Future<bool> submitFeedback({
+    required String sampleId,
+    required bool isCorrect,
+    String? wildart,
+    String? geschlecht,
+    double? alterJahre,
+    String? altersklasse,
+    String? methode,
+  }) async {
+    try {
+      // Self-signed SSL: badCertificateCallback erlauben (wie analyze)
+      final httpClient = HttpClient()
+        ..badCertificateCallback = (cert, host, port) => true;
+      final ioClient = IOClient(httpClient);
+      final request = http.MultipartRequest(
+          'POST', Uri.parse('$backendUrl/feedback'));
+      request.headers.addAll({'Content-Type': 'multipart/form-data'});
+      request.fields['sample_id'] = sampleId;
+      request.fields['is_correct'] = isCorrect ? 'true' : 'false';
+      if (wildart != null) request.fields['wildart'] = wildart;
+      if (geschlecht != null) request.fields['geschlecht'] = geschlecht;
+      if (alterJahre != null) {
+        request.fields['alter_jahre'] = alterJahre.toString();
+      }
+      if (altersklasse != null) request.fields['altersklasse'] = altersklasse;
+      if (methode != null) request.fields['methode'] = methode;
+
+      final response =
+          await ioClient.send(request).timeout(const Duration(seconds: 30));
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Leitet Altersklassen-Wahrscheinlichkeiten aus Gaußscher Verteilung ab.

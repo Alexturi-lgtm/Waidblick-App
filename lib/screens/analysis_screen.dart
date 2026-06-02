@@ -67,6 +67,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   String _detectedRegion = 'Bayern'; // GPS-bestimmte Region
   bool _erlegerbild = false; // Erlegerbild erkannt
   bool _isApiError = false; // API-Fehler aufgetreten
+  bool _trainingConsent = false; // KI-Training-Einwilligung (Settings)
+  bool _feedbackSent = false; // Lern-Feedback für aktuelle Probe abgesendet
   DateTime? _exifDate; // EXIF-Datum aus hochgeladenem Foto
   String? _exifDateHint; // Hinweis-Text für UI
   // _multiPhotoCount entfernt (wird nur intern gezählt, kein UI-Feedback nötig)
@@ -142,7 +144,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   Future<void> _loadRegion() async {
     final region = await SettingsService.getRegion();
-    if (mounted) setState(() => _huntingRegion = region);
+    final consent = await SettingsService.getTrainingConsent();
+    if (mounted) {
+      setState(() {
+        _huntingRegion = region;
+        _trainingConsent = consent;
+      });
+    }
   }
 
   /// Konvertiert den String aus detectRegion() in HuntingRegion-Enum
@@ -172,6 +180,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       _latestVisionEstimate = null;
       _erlegerbild = false;
       _isApiError = false;
+      _feedbackSent = false;
       _exifDate = null;
       _exifDateHint = null;
     });
@@ -442,11 +451,17 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           region: _detectedRegion,
           photoCount: _photos.length + 1,
           previousEstimate: _latestVisionEstimate,
+          trainingConsent: _trainingConsent,
         );
         // Vision-Ergebnis direkt in die Bayes-Engine laden (kein Mock-Overlay)
         _engine.setFromVision(visionEstimate);
         _latestVisionEstimate = visionEstimate;
-        if (mounted) setState(() => _isApiError = false);
+        if (mounted) {
+          setState(() {
+            _isApiError = false;
+            _feedbackSent = false; // neue Probe → Feedback wieder möglich
+          });
+        }
 
         // Erlegerbild-Erkennung
         final begr = visionEstimate.begruendung.toLowerCase();
@@ -1359,6 +1374,278 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     return _buildResultView(estimate, theme);
   }
 
+  // ── Lern-Feedback ──────────────────────────────────────────────────────────
+
+  /// Dezente Karte "War das richtig?" mit Ja/Nein-Buttons.
+  /// Nur sichtbar, wenn das Ergebnis eine sampleId hat (Consent aktiv).
+  Widget _buildFeedbackCard(AgeEstimate estimate) {
+    return Container(
+      decoration: BoxDecoration(
+        color: WaidblickColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: WaidblickColors.border, width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: const [
+                Icon(Icons.school_outlined,
+                    color: WaidblickColors.primary, size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'War das richtig?',
+                    style: TextStyle(
+                      color: WaidblickColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Dein verifiziertes Ergebnis verbessert die Erkennung für alle.',
+              style: TextStyle(
+                color: WaidblickColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _submitPositiveFeedback(estimate),
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text('Ja, passt'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: WaidblickColors.primary,
+                      foregroundColor: Colors.black,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showCorrectionSheet(estimate),
+                    icon: const Icon(Icons.edit_outlined,
+                        size: 18, color: WaidblickColors.primary),
+                    label: const Text(
+                      'Nein, korrigieren',
+                      style: TextStyle(color: WaidblickColors.primary),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: WaidblickColors.primary),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitPositiveFeedback(AgeEstimate estimate) async {
+    final id = estimate.sampleId;
+    if (id == null) return;
+    final ok = await VisionApiService.submitFeedback(
+      sampleId: id,
+      isCorrect: true,
+      wildart: estimate.wildart,
+      geschlecht: estimate.isMale ? 'maennlich' : 'weiblich',
+      alterJahre: estimate.meanAge,
+      altersklasse: estimate.dominantAgeClass.name,
+    );
+    _afterFeedback(ok);
+  }
+
+  /// BottomSheet zum Korrigieren des Ergebnisses (echtes Alter/Geschlecht/Methode).
+  Future<void> _showCorrectionSheet(AgeEstimate estimate) async {
+    final id = estimate.sampleId;
+    if (id == null) return;
+
+    final alterCtrl = TextEditingController(
+      text: estimate.meanAge.round().toString(),
+    );
+    String geschlecht = estimate.isMale ? 'maennlich' : 'weiblich';
+    String? methode;
+
+    final submitted = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: WaidblickColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Echtes Ergebnis',
+                    style: TextStyle(
+                      color: WaidblickColors.textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Trage das verifizierte Ergebnis ein (z.B. nach Zahnschliff).',
+                    style: TextStyle(
+                      color: WaidblickColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Echtes Alter
+                  TextField(
+                    controller: alterCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: WaidblickColors.textPrimary),
+                    decoration: InputDecoration(
+                      labelText: 'Echtes Alter (Jahre)',
+                      labelStyle: const TextStyle(
+                          color: WaidblickColors.textSecondary),
+                      filled: true,
+                      fillColor: WaidblickColors.surfaceVariant,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Geschlecht
+                  DropdownButtonFormField<String>(
+                    value: geschlecht,
+                    dropdownColor: WaidblickColors.surfaceVariant,
+                    style: const TextStyle(color: WaidblickColors.textPrimary),
+                    iconEnabledColor: WaidblickColors.primary,
+                    decoration: InputDecoration(
+                      labelText: 'Geschlecht',
+                      labelStyle: const TextStyle(
+                          color: WaidblickColors.textSecondary),
+                      filled: true,
+                      fillColor: WaidblickColors.surfaceVariant,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'maennlich', child: Text('Männlich')),
+                      DropdownMenuItem(
+                          value: 'weiblich', child: Text('Weiblich')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setSheetState(() => geschlecht = v);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  // Methode (optional)
+                  DropdownButtonFormField<String>(
+                    value: methode,
+                    dropdownColor: WaidblickColors.surfaceVariant,
+                    style: const TextStyle(color: WaidblickColors.textPrimary),
+                    iconEnabledColor: WaidblickColors.primary,
+                    decoration: InputDecoration(
+                      labelText: 'Methode (optional)',
+                      labelStyle: const TextStyle(
+                          color: WaidblickColors.textSecondary),
+                      filled: true,
+                      fillColor: WaidblickColors.surfaceVariant,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'zahnschliff', child: Text('Zahnschliff')),
+                      DropdownMenuItem(
+                          value: 'erleger', child: Text('Erleger')),
+                      DropdownMenuItem(value: 'sicht', child: Text('Sicht')),
+                    ],
+                    onChanged: (v) => setSheetState(() => methode = v),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: WaidblickColors.primary,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text('Korrektur senden',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (submitted != true) return;
+
+    final alterJahre = double.tryParse(alterCtrl.text.replaceAll(',', '.'));
+    final ok = await VisionApiService.submitFeedback(
+      sampleId: id,
+      isCorrect: false,
+      wildart: estimate.wildart,
+      geschlecht: geschlecht,
+      alterJahre: alterJahre,
+      methode: methode,
+    );
+    _afterFeedback(ok);
+  }
+
+  /// Zeigt nach dem Absenden eine kurze Bestätigung und blendet das Widget aus.
+  void _afterFeedback(bool ok) {
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _feedbackSent = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Danke! Dein Feedback hilft beim Training.'),
+          backgroundColor: WaidblickColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Feedback konnte nicht gesendet werden.'),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   Widget _buildAnalyzingState() {
     return Stack(
       fit: StackFit.expand,
@@ -2073,6 +2360,15 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               ),
             ),
           const SizedBox(height: 16),
+
+          // Lern-Feedback: nur wenn echte sample_id vorhanden (Consent aktiv)
+          // und kein "kein Wild" und Feedback noch nicht abgesendet.
+          if (estimate.sampleId != null &&
+              !estimate.isNotGams &&
+              !_feedbackSent) ...[
+            _buildFeedbackCard(estimate),
+            const SizedBox(height: 16),
+          ],
 
           // Aktions-Buttons
           ElevatedButton.icon(

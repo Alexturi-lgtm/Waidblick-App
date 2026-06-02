@@ -55,6 +55,10 @@ class AgeEstimate {
   /// Sicherheit der Geschlechtsbestimmung
   final String geschlechtSicherheit;
 
+  /// Server-seitige Sample-ID für Lern-Feedback.
+  /// Nur gesetzt, wenn beim Analyse-Call training_consent=true mitgeschickt wurde.
+  final String? sampleId;
+
   const AgeEstimate({
     required this.pKitz,
     required this.pJung,
@@ -76,6 +80,7 @@ class AgeEstimate {
     this.gewichteterScore,
     this.geschlechtMerkmal = '',
     this.geschlechtSicherheit = 'niedrig',
+    this.sampleId,
   });
 
   /// Mock-Schätzung für Fallback/Tests
@@ -290,6 +295,7 @@ class AgeEstimate {
       gewichteterScore: gewichteterScore,
       geschlechtMerkmal: geschlechtMerkmal,
       geschlechtSicherheit: geschlechtSicherheit,
+      sampleId: sampleId,
     );
   }
 
@@ -314,6 +320,7 @@ class AgeEstimate {
         if (gewichteterScore != null) 'gewichteter_score': gewichteterScore,
         if (geschlechtMerkmal.isNotEmpty) 'geschlecht_merkmal': geschlechtMerkmal,
         if (geschlechtSicherheit.isNotEmpty) 'geschlecht_sicherheit': geschlechtSicherheit,
+        if (sampleId != null) 'sample_id': sampleId,
       };
 
   factory AgeEstimate.fromJson(Map<String, dynamic> json) => AgeEstimate(
@@ -337,5 +344,6 @@ class AgeEstimate {
         gewichteterScore: (json['gewichteter_score'] as num?)?.toDouble(),
         geschlechtMerkmal: json['geschlecht_merkmal'] as String? ?? '',
         geschlechtSicherheit: json['geschlecht_sicherheit'] as String? ?? 'niedrig',
+        sampleId: json['sample_id'] as String?,
       );
 }
