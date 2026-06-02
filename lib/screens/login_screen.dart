@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 48),
               // Logo
               Text(
-                'WAIDBLICK',
+                'GAMSSINN',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 36,

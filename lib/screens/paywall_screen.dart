@@ -217,7 +217,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'WAIDBLICK',
+          'GAMSSINN',
           style: TextStyle(
             color: WaidblickColors.primary,
             fontWeight: FontWeight.w900,

@@ -74,7 +74,7 @@ class DesignTemplateAudi extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'WAIDBLICK',
+                          'GAMSSINN',
                           style: TextStyle(
                             color: _white,
                             fontSize: 22,

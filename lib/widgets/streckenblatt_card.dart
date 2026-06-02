@@ -76,7 +76,7 @@ class StreckenblattCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
                     Text(
-                      'WAIDBLICK',
+                      'GAMSSINN',
                       style: TextStyle(
                         color: Color(0xFFc9a84c),
                         fontSize: 15,

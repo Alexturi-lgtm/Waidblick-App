@@ -123,7 +123,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     children: [
                       // Logo text
                       const Text(
-                        'WAIDBLICK',
+                        'GAMSSINN',
                         style: TextStyle(
                           color: Color(0xFFc9a84c),
                           fontSize: 16,

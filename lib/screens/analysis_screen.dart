@@ -1232,7 +1232,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'WAIDBLICK',
+                          'GAMSSINN',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,

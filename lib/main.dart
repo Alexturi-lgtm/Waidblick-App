@@ -26,7 +26,7 @@ class WaidblickApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'WAIDBLICK',
+      title: 'GAMSSINN',
       theme: AppTheme.darkTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.dark,

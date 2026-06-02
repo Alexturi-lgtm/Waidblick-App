@@ -42,7 +42,7 @@ class DesignTemplateCarbon extends StatelessWidget {
               margin: const EdgeInsets.only(right: 12),
             ),
             const Text(
-              'WAIDBLICK',
+              'GAMSSINN',
               style: TextStyle(
                 color: _white,
                 fontSize: 16,

@@ -200,7 +200,7 @@ class _GamsDetailScreenState extends State<GamsDetailScreen> {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('WAIDBLICK',
+                  pw.Text('GAMSSINN',
                       style: pw.TextStyle(
                           fontSize: 24,
                           fontWeight: pw.FontWeight.bold,

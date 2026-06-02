@@ -117,7 +117,7 @@ class _SplashScreenState extends State<SplashScreen>
                       _buildLogo(),
                       const SizedBox(height: 32),
                       const Text(
-                        'WAIDBLICK',
+                        'GAMSSINN',
                         style: TextStyle(
                           color: WaidblickColors.primary,
                           fontSize: 42,

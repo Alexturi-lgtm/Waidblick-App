@@ -41,7 +41,7 @@ class DesignTemplatePorsche extends StatelessWidget {
           child: Container(height: 1, color: _border),
         ),
         title: const Text(
-          'WAIDBLICK',
+          'GAMSSINN',
           style: TextStyle(
             color: _white,
             fontSize: 14,
