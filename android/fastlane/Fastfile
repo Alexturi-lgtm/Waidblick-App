@@ -1,0 +1,104 @@
+# fastlane Fastfile (Android) — Gamssinn
+#
+# Minimal-Geruest an der offiziellen Flutter-CD-Doku orientiert
+# (https://docs.flutter.dev/deployment/cd). Das AAB wird mit
+# `flutter build appbundle` gebaut, fastlane `supply` (upload_to_play_store)
+# uebernimmt den Upload in die jeweilige Play-Spur.
+#
+# WICHTIG: Ersetzt NICHT den bestehenden, gruenen Workflow
+# .github/workflows/android_release.yml. Das Signing nutzt dasselbe Setup:
+# android/app/build.gradle.kts liest android/key.properties.
+#
+# ----------------------------------------------------------------------------
+# Benoetigte ENV / Secrets (NUR Platzhalter — niemals echte Werte committen):
+#
+#   Signing (bereits als GitHub-Secrets vorhanden):
+#     ANDROID_KEYSTORE_BASE64     -> Upload-Keystore, base64-kodiert
+#     ANDROID_KEYSTORE_PASSWORD   -> Store- UND Key-Passwort (identisch)
+#     ANDROID_KEY_ALIAS           -> Alias im Keystore
+#
+#   Play-Upload (NEU — von Alex zu liefern):
+#     PLAY_SERVICE_ACCOUNT_JSON        -> Inhalt des Service-Account-JSON (CI-Secret)
+#       ODER
+#     PLAY_SERVICE_ACCOUNT_JSON_PATH   -> Pfad zur JSON-Datei (lokal)
+#
+# In CI vor dem Upload das JSON-Secret in eine Datei schreiben, z.B.:
+#   echo "$PLAY_SERVICE_ACCOUNT_JSON" > android/fastlane/play-service-account.json
+# (Diese Datei ist via .gitignore auszuschliessen.)
+# ----------------------------------------------------------------------------
+
+default_platform(:android)
+
+# Rekonstruiert android/key.properties + Keystore aus den ENV-Secrets,
+# damit `flutter build appbundle` mit dem Release-signingConfig signiert.
+# Spiegelt die Logik aus android_release.yml.
+def prepare_signing
+  keystore_b64 = ENV.fetch("ANDROID_KEYSTORE_BASE64")
+  keystore_pw  = ENV.fetch("ANDROID_KEYSTORE_PASSWORD")
+  key_alias    = ENV.fetch("ANDROID_KEY_ALIAS")
+
+  keystore_path = File.expand_path("~/gamssinn-upload.keystore")
+  File.binwrite(keystore_path, Base64.decode64(keystore_b64))
+  UI.user_error!("Keystore leer — ANDROID_KEYSTORE_BASE64 pruefen") if File.size(keystore_path).zero?
+
+  # key.properties relativ zum android/-Verzeichnis (= fastlane-Parent).
+  key_props = File.expand_path("../key.properties", Dir.pwd)
+  File.write(key_props, <<~PROPS)
+    storePassword=#{keystore_pw}
+    keyPassword=#{keystore_pw}
+    keyAlias=#{key_alias}
+    storeFile=#{keystore_path}
+  PROPS
+end
+
+def build_aab
+  build_number = ENV["GITHUB_RUN_NUMBER"] || Time.now.to_i.to_s
+  sh("flutter", "build", "appbundle", "--release",
+     "--build-number=#{build_number}")
+end
+
+def latest_aab_path
+  path = Dir["#{Dir.pwd}/../../build/app/outputs/bundle/release/*.aab"].first
+  UI.user_error!("Kein AAB gefunden unter build/app/outputs/bundle/release/") if path.nil?
+  path
+end
+
+platform :android do
+  require "base64"
+
+  # ---------------------------------------------------------------------------
+  # beta: signiertes AAB bauen + in den Internal-Testing-Track hochladen
+  #   bundle exec fastlane android beta
+  # ---------------------------------------------------------------------------
+  desc "Build signed AAB and upload to Play internal testing track"
+  lane :beta do
+    prepare_signing
+    build_aab
+    upload_to_play_store(
+      track: "internal",
+      aab: latest_aab_path,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      release_status: "draft"
+    )
+  end
+
+  # ---------------------------------------------------------------------------
+  # release: signiertes AAB bauen + in den Production-Track hochladen
+  #   bundle exec fastlane android release
+  # ---------------------------------------------------------------------------
+  desc "Build signed AAB and upload to Play production track"
+  lane :release do
+    prepare_signing
+    build_aab
+    upload_to_play_store(
+      track: "production",
+      aab: latest_aab_path,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      release_status: "draft" # bewusst draft: Alex gibt das Rollout manuell frei
+    )
+  end
+end

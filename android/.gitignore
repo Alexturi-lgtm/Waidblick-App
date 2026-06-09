@@ -12,3 +12,8 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# fastlane Play Service-Account (NIE committen)
+fastlane/play-service-account.json
+**/play-service-account.json
+*.service-account.json

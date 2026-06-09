@@ -1,0 +1,90 @@
+# fastlane Fastfile (iOS) — Gamssinn
+#
+# Minimal-Geruest an der offiziellen Flutter-CD-Doku orientiert
+# (https://docs.flutter.dev/deployment/cd). Build wird mit `flutter build ipa`
+# erzeugt, fastlane uebernimmt nur den Upload via App Store Connect API Key.
+#
+# WICHTIG: Dieses Geruest ersetzt NICHT den bestehenden, gruenen Workflow
+# .github/workflows/ios_testflight.yml. Es ist die wiederholbare, lokal/CI
+# nutzbare Alternative.
+#
+# ----------------------------------------------------------------------------
+# Benoetigte ENV / Secrets (NUR Platzhalter — niemals echte Werte committen):
+#
+#   APP_STORE_CONNECT_API_KEY_ID        -> Key-ID, z.B. "GVYK3VM779"
+#   APP_STORE_CONNECT_ISSUER_ID         -> Issuer-ID (UUID) aus App Store Connect
+#   APP_STORE_CONNECT_API_KEY_CONTENT   -> Inhalt der .p8-Datei, base64-kodiert
+#
+# Diese drei sind bereits als GitHub-Secrets vorhanden (gleiche Namen wie im
+# Workflow). Lokal in der Shell exportieren oder in CI als env durchreichen.
+# ----------------------------------------------------------------------------
+
+default_platform(:ios)
+
+# Laedt den App Store Connect API Key aus den ENV-Variablen in den
+# fastlane-Kontext (kein Apple-ID-Login noetig, kein 2FA-Prompt).
+def load_app_store_connect_api_key
+  app_store_connect_api_key(
+    key_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ID"),
+    issuer_id: ENV.fetch("APP_STORE_CONNECT_ISSUER_ID"),
+    key_content: ENV.fetch("APP_STORE_CONNECT_API_KEY_CONTENT"),
+    is_key_content_base64: true,
+    in_house: false
+  )
+end
+
+platform :ios do
+  # ---------------------------------------------------------------------------
+  # beta: IPA bauen + zu TestFlight hochladen
+  #   bundle exec fastlane ios beta
+  # ---------------------------------------------------------------------------
+  desc "Build IPA and upload to TestFlight"
+  lane :beta do
+    api_key = load_app_store_connect_api_key
+
+    # IPA via Flutter bauen. Build-Nummer aus CI ($GITHUB_RUN_NUMBER),
+    # Fallback auf aktuellen Unix-Zeitstempel fuer lokale Builds.
+    build_number = ENV["GITHUB_RUN_NUMBER"] || Time.now.to_i.to_s
+    sh("flutter", "build", "ipa", "--release",
+       "--build-number=#{build_number}",
+       "--export-options-plist=ios/ExportOptions.plist")
+
+    ipa_path = Dir["#{Dir.pwd}/../build/ios/ipa/*.ipa"].first
+    UI.user_error!("Keine IPA gefunden unter build/ios/ipa/") if ipa_path.nil?
+
+    upload_to_testflight(
+      api_key: api_key,
+      ipa: ipa_path,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  # ---------------------------------------------------------------------------
+  # release: IPA bauen + in den App Store hochladen (Review-Submission separat)
+  #   bundle exec fastlane ios release
+  # ---------------------------------------------------------------------------
+  desc "Build IPA and upload to the App Store"
+  lane :release do
+    api_key = load_app_store_connect_api_key
+
+    build_number = ENV["GITHUB_RUN_NUMBER"] || Time.now.to_i.to_s
+    sh("flutter", "build", "ipa", "--release",
+       "--build-number=#{build_number}",
+       "--export-options-plist=ios/ExportOptions.plist")
+
+    ipa_path = Dir["#{Dir.pwd}/../build/ios/ipa/*.ipa"].first
+    UI.user_error!("Keine IPA gefunden unter build/ios/ipa/") if ipa_path.nil?
+
+    # Laedt den Build hoch. Metadaten/Screenshots werden hier bewusst NICHT
+    # ueberschrieben (skip_metadata/skip_screenshots), bis fastlane/metadata
+    # befuellt ist. submit_for_review bleibt false -> Alex reicht manuell ein.
+    upload_to_app_store(
+      api_key: api_key,
+      ipa: ipa_path,
+      skip_metadata: true,
+      skip_screenshots: true,
+      submit_for_review: false,
+      precheck_include_in_app_purchases: false
+    )
+  end
+end

@@ -1,0 +1,11 @@
+# fastlane Appfile (Android) — Gamssinn
+#
+# Play-Paketname (entspricht applicationId in android/app/build.gradle.kts).
+package_name("de.gamssinn.app")
+
+# Pfad zum Google-Play-Service-Account-JSON.
+# NIEMALS das echte JSON committen — nur diesen Verweis.
+# In CI das JSON aus dem Secret PLAY_SERVICE_ACCOUNT_JSON in genau diese Datei
+# schreiben (siehe Kommentar im Fastfile), oder lokal den Pfad via ENV setzen:
+#   export PLAY_SERVICE_ACCOUNT_JSON_PATH=/sicherer/pfad/play-service-account.json
+json_key_file(ENV["PLAY_SERVICE_ACCOUNT_JSON_PATH"] || "fastlane/play-service-account.json")
