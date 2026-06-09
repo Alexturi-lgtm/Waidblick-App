@@ -1,0 +1,150 @@
+/* Gamssinn — Landingpage Styles
+   Sachlich-jagdliche Tonalität: gedeckte Naturtöne, klare Typografie. */
+
+:root {
+  --bg: #14171a;
+  --bg-soft: #1c2126;
+  --card: #222a30;
+  --fg: #e8e4da;
+  --fg-muted: #a9a396;
+  --accent: #7a8b5a;      /* Loden-/Moosgrün */
+  --accent-soft: #4f5a3a;
+  --line: #333b42;
+  --max: 1080px;
+  --radius: 14px;
+  font-size: 16px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 1.25rem; }
+
+/* ---------- Header ---------- */
+.site-header {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(20, 23, 26, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.site-header .wrap {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px;
+}
+.brand { font-weight: 700; font-size: 1.25rem; letter-spacing: 0.5px; color: var(--fg); }
+.brand span { color: var(--accent); }
+.nav a { color: var(--fg-muted); margin-left: 1.5rem; font-size: 0.95rem; }
+.nav a:hover { color: var(--fg); text-decoration: none; }
+
+/* ---------- Hero ---------- */
+.hero {
+  padding: 5rem 0 4rem;
+  background:
+    radial-gradient(circle at 70% 20%, rgba(122,139,90,0.18), transparent 55%),
+    var(--bg);
+  text-align: center;
+}
+.hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.15; margin-bottom: 1rem; }
+.hero .lead { font-size: clamp(1.05rem, 2.5vw, 1.4rem); color: var(--fg-muted); max-width: 640px; margin: 0 auto 2rem; }
+.hero .disclaimer { font-size: 0.9rem; color: var(--fg-muted); margin-top: 1.5rem; font-style: italic; }
+
+/* ---------- Buttons / Badges ---------- */
+.cta-row { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-flex; align-items: center; gap: 0.6rem;
+  background: var(--card); border: 1px solid var(--line);
+  color: var(--fg); padding: 0.7rem 1.2rem; border-radius: 10px;
+  font-size: 0.95rem; min-width: 200px; justify-content: center;
+}
+.badge:hover { border-color: var(--accent); text-decoration: none; }
+.badge small { display: block; color: var(--fg-muted); font-size: 0.72rem; line-height: 1; }
+.badge strong { font-size: 1.05rem; line-height: 1.2; }
+.badge.disabled { opacity: 0.55; cursor: default; }
+
+/* ---------- Sections ---------- */
+section { padding: 4rem 0; border-top: 1px solid var(--line); }
+section h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin-bottom: 1rem; }
+section .intro { color: var(--fg-muted); max-width: 680px; margin-bottom: 2.5rem; }
+
+/* ---------- Features ---------- */
+.grid {
+  display: grid; gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.feature {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 1.5rem;
+}
+.feature h3 { font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--fg); }
+.feature p { color: var(--fg-muted); font-size: 0.95rem; }
+.feature .ico { font-size: 1.6rem; margin-bottom: 0.75rem; display: block; }
+
+/* ---------- Screenshots ---------- */
+.shots { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.shot {
+  aspect-ratio: 9/19; background: var(--bg-soft);
+  border: 1px dashed var(--accent-soft); border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--fg-muted); font-size: 0.85rem; text-align: center; padding: 1rem;
+}
+
+/* ---------- Steps ---------- */
+.steps { counter-reset: step; display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.step { position: relative; padding-left: 3rem; }
+.step::before {
+  counter-increment: step; content: counter(step);
+  position: absolute; left: 0; top: 0;
+  width: 2.2rem; height: 2.2rem; border-radius: 50%;
+  background: var(--accent-soft); color: var(--fg);
+  display: flex; align-items: center; justify-content: center; font-weight: 700;
+}
+.step h3 { font-size: 1.05rem; margin-bottom: 0.3rem; }
+.step p { color: var(--fg-muted); font-size: 0.92rem; }
+
+/* ---------- Contact ---------- */
+.contact-box {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 2rem; max-width: 520px;
+}
+.contact-box a { font-weight: 600; }
+
+/* ---------- Footer ---------- */
+.site-footer {
+  border-top: 1px solid var(--line); background: var(--bg-soft);
+  padding: 2.5rem 0; color: var(--fg-muted); font-size: 0.9rem;
+}
+.site-footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem 2rem; justify-content: space-between; align-items: center; }
+.site-footer a { color: var(--fg-muted); margin-right: 1.25rem; }
+.site-footer a:hover { color: var(--fg); }
+
+/* ---------- Legal pages ---------- */
+.legal { padding: 3rem 0; }
+.legal h1 { font-size: 2rem; margin-bottom: 1.5rem; }
+.legal h2 { font-size: 1.3rem; margin: 2rem 0 0.75rem; border: none; padding: 0; }
+.legal h3 { font-size: 1.05rem; margin: 1.25rem 0 0.5rem; }
+.legal p, .legal li { color: var(--fg); margin-bottom: 0.75rem; }
+.legal ul { padding-left: 1.5rem; }
+.legal .note {
+  background: var(--bg-soft); border-left: 3px solid var(--accent);
+  padding: 1rem 1.25rem; border-radius: 6px; margin: 1.5rem 0;
+  color: var(--fg-muted); font-size: 0.92rem;
+}
+.legal .todo { color: #d98b4a; font-weight: 600; }
+.back { display: inline-block; margin-bottom: 1.5rem; color: var(--fg-muted); }
+
+@media (max-width: 600px) {
+  .nav a { margin-left: 1rem; font-size: 0.85rem; }
+  .hero { padding: 3rem 0; }
+}

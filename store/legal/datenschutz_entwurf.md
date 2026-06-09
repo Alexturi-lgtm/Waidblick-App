@@ -9,12 +9,13 @@
 
 Verantwortlicher im Sinne der Datenschutz-Grundverordnung (DSGVO) ist:
 
-**Turok GmbH**
-Wiener Straße 7
-82049 Pullach
+**Alexander Turi** (Privatperson)
+[[ALEX EINTRAGEN: ladungsfähige Anschrift – Straße, Hausnummer, PLZ, Ort]]
 Deutschland
 
 E-Mail: waidblick@proton.me
+
+> Hinweis: Verantwortlicher ist Alexander Turi als **Privatperson**, NICHT die Turok GmbH.
 
 [PLATZHALTER: Falls ein:e Datenschutzbeauftragte:r benannt ist, hier Name und Kontaktdaten ergänzen. Andernfalls diesen Hinweis ersatzlos streichen.]
 
@@ -68,8 +69,21 @@ Für die KI-gestützte Bildanalyse übermitteln wir das jeweilige Foto an die Ge
 - Zweck: Durchführung der KI-Bildanalyse.
 - **Drittlandübermittlung:** Eine Verarbeitung außerhalb des Europäischen Wirtschaftsraums (insbesondere USA) kann nicht ausgeschlossen werden. In diesem Fall erfolgt die Übermittlung auf Grundlage geeigneter Garantien, insbesondere der EU-Standardvertragsklauseln (Art. 46 DSGVO) bzw. eines anwendbaren Angemessenheitsbeschlusses. [PLATZHALTER: Tatsächlich abgeschlossene Vertragsgrundlage (AV-Vertrag, SCC, Data Processing Addendum) und ggf. EU-US Data Privacy Framework-Zertifizierung bestätigen.]
 
-### 5.3 App Store / Zahlungsabwicklung
-Sofern In-App-Käufe/Abos angeboten werden, erfolgt die Zahlungsabwicklung über Apple App Store bzw. Google Play. [PLATZHALTER: Streichen oder konkretisieren je nach Monetarisierung.]
+### 5.3 Backend-Datenbank & Authentifizierung (Supabase)
+Für Nutzerkonten, Authentifizierung und Speicherung von Analysen/Lookbook setzen wir Supabase ein.
+- Anbieter: [[ALEX EINTRAGEN: „Supabase, Inc.", Anschrift + gewählte Hosting-Region (EU empfohlen)]].
+- Zweck: Datenbank, Nutzerverwaltung, Speicher.
+- **Drittlandübermittlung:** sofern außerhalb EWR, auf Basis der EU-Standardvertragsklauseln (Art. 46 DSGVO). [[ALEX/Prüfung: AV-Vertrag/DPA + Region bestätigen.]]
+
+### 5.4 Abo-Verwaltung (RevenueCat)
+Zur Verwaltung von Abonnements/In-App-Käufen setzen wir RevenueCat ein (pseudonyme Nutzerkennung + Kaufstatus).
+- Anbieter: [[ALEX EINTRAGEN: „RevenueCat, Inc.", Anschrift (USA)]].
+- Zweck: Verwaltung/Validierung von Abos und Käufen.
+- **Drittlandübermittlung (USA):** EU-Standardvertragsklauseln (Art. 46 DSGVO). [[ALEX/Prüfung: DPA bestätigen.]]
+- **Rechtsgrundlage:** Art. 6 Abs. 1 lit. b DSGVO.
+
+### 5.5 App Store / Zahlungsabwicklung
+Die Zahlungsabwicklung für In-App-Käufe/Abos erfolgt ausschließlich über Apple App Store bzw. Google Play. Wir erhalten keine vollständigen Zahlungsdaten, sondern nur den Kaufstatus.
 
 Eine **Weitergabe Ihrer Daten zu Werbe- oder Marketingzwecken an Dritte findet nicht statt.** Wir verkaufen Ihre personenbezogenen Daten nicht.
 

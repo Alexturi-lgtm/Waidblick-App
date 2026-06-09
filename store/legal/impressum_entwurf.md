@@ -7,34 +7,20 @@ Angaben gemäß § 5 Digitale-Dienste-Gesetz (DDG, ehemals § 5 TMG).
 
 ## Anbieter
 
-**Turok GmbH**
-Wiener Straße 7
-82049 Pullach
+**Alexander Turi** (Privatperson)
+[[ALEX EINTRAGEN: ladungsfähige Anschrift – Straße, Hausnummer, PLZ, Ort. Postfach genügt nicht. Pflichtangabe nach § 5 DDG.]]
 Deutschland
 
-## Vertreten durch
-
-Geschäftsführer:in: [PLATZHALTER: vollständiger Name des/der Geschäftsführer:in]
+> Hinweis: Anbieter der App ist Alexander Turi als **Privatperson**, NICHT die Turok GmbH (reine Holding, darf nicht App-Anbieter sein). Daher entfallen Handelsregister- und USt-IdNr.-Angaben, sofern kein Gewerbe/keine Selbstständigkeit angemeldet ist. → vor Launch prüfen lassen, ob durch die Abo-Monetarisierung eine Gewerbeanmeldung/Kleinunternehmer-Status nötig wird; dann ggf. Anschrift/USt-Angaben ergänzen.
 
 ## Kontakt
 
 E-Mail: waidblick@proton.me
-[PLATZHALTER: Telefonnummer – sofern angegeben werden soll. Eine Telefonnummer ist empfehlenswert, da eine „unmittelbare und effiziente" Kontaktaufnahme ermöglicht werden muss; reine E-Mail kann je nach Auslegung unzureichend sein. Bitte rechtlich klären.]
-
-## Registereintrag
-
-Eintragung im Handelsregister.
-Registergericht: [PLATZHALTER: zuständiges Amtsgericht, z. B. „Amtsgericht München"]
-Registernummer: [PLATZHALTER: HRB-Nummer]
-
-## Umsatzsteuer-Identifikationsnummer
-
-Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz:
-[PLATZHALTER: USt-IdNr., z. B. „DE…"]
+[[ALEX EINTRAGEN (empfohlen): Telefonnummer. § 5 DDG verlangt eine „unmittelbare und effiziente" Kontaktmöglichkeit; reine E-Mail kann je nach Auslegung unzureichend sein. Rechtlich klären.]]
 
 ## Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV
 
-[PLATZHALTER: Name und Anschrift der verantwortlichen Person — i. d. R. der/die Geschäftsführer:in mit ladungsfähiger Anschrift. Nur erforderlich, soweit journalistisch-redaktionelle Inhalte angeboten werden; ggf. streichen lassen.]
+Alexander Turi (Anschrift wie oben).
 
 ## EU-Streitschlichtung
 
