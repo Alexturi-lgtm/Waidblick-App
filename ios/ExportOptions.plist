@@ -16,8 +16,8 @@
     <string>manual</string>
     <key>provisioningProfiles</key>
     <dict>
-        <key>de.waidblick.app</key>
-        <string>Waidblick AppStore</string>
+        <key>de.gamssinn.app</key>
+        <string>Gamssinn AppStore</string>
     </dict>
 </dict>
 </plist>

@@ -7,14 +7,14 @@ on:
 
 jobs:
   build-ios:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 60
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16
+      - name: Select Xcode 26 (Pflicht seit 28.04.2026)
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: 'latest-stable'

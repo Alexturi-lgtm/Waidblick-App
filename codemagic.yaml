@@ -8,7 +8,7 @@ workflows:
     environment:
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: de.waidblick.app
+        bundle_identifier: de.gamssinn.app
       flutter: stable
       xcode: latest
       cocoapods: default

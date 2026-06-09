@@ -4,7 +4,7 @@
 > Stand: 2026-06. Orientiert an App-Store-Review-Guidelines & Google-Play-Policy (2026).
 >
 > **Identitäten (unveränderlich):**
-> - iOS Bundle-ID: `de.waidblick.app` (Apple-Profil dafür ausgestellt — NICHT ändern)
+> - iOS Bundle-ID: `de.gamssinn.app` (Apple-Profil dafür ausgestellt — NICHT ändern)
 > - Android applicationId: `de.gamssinn.app`
 > - Anzeigename überall: **Gamssinn**
 > - Apple Team-ID: `J4JZ2DQC77`
@@ -21,7 +21,7 @@
 
 - [x] ✅ Flutter-Projekt baut sauber (`flutter analyze` grün in CI)
 - [x] ✅ Anzeigename "Gamssinn" gesetzt (iOS + Android)
-- [x] ✅ iOS Bundle-ID `de.waidblick.app` fixiert
+- [x] ✅ iOS Bundle-ID `de.gamssinn.app` fixiert
 - [x] ✅ Android applicationId `de.gamssinn.app` fixiert
 - [x] ✅ Lern-/Feedback-Funktion in der App eingebaut
 - [ ] ⏳ **[ALEX]** Apple Developer Account aktiv & bezahlt (99 USD/Jahr) — Voraussetzung für Store-Release (TestFlight läuft bereits, App-Store-Listing braucht aktives Programm)

@@ -1,7 +1,7 @@
 # fastlane Appfile (iOS) — Gamssinn
 #
 # Bundle-ID ist UNVERAENDERLICH: Apple-Profil ist genau dafuer ausgestellt.
-app_identifier("de.waidblick.app")
+app_identifier("de.gamssinn.app")
 
 # Apple Team-ID (aus ios/ExportOptions.plist).
 team_id("J4JZ2DQC77")
