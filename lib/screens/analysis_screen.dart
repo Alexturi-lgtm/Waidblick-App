@@ -17,6 +17,7 @@ import '../services/database_service.dart';
 import '../services/location_service.dart';
 import '../services/ml_service.dart';
 import '../services/vision_api_service.dart';
+import '../services/image_quality_service.dart';
 import '../services/photo_quality_service.dart';
 import '../services/recognition_service.dart';
 import '../services/settings_service.dart';
@@ -337,6 +338,52 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     return prefs.getBool('guest_mode') ?? false;
   }
 
+  /// Freundlicher Hinweis-Dialog bei erkanntem Qualitätsproblem.
+  /// Rückgabe: true = trotzdem analysieren, false/null = abbrechen.
+  /// Der Nutzer behält die Kontrolle ("Trotzdem analysieren").
+  Future<bool?> _confirmLowQuality(ImageQualityResult quality) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.lightbulb_outline, color: Colors.amber),
+            const SizedBox(width: 8),
+            Expanded(child: Text(quality.title)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...quality.messages.map(
+              (msg) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(msg, style: const TextStyle(fontSize: 14)),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Du kannst trotzdem analysieren – die Einschätzung ist dann '
+              'aber weniger sicher.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Neues Foto'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Trotzdem analysieren'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _analyzeXFile(XFile picked, {bool fromGallery = false}) async {
     // Freemium-Check: Analyse-Limit
     final canAnalyze = await FreemiumService.canAnalyze();
@@ -349,6 +396,17 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     }
 
     final imageBytes = await picked.readAsBytes();
+
+    // ── Client-seitiger Bild-Qualitäts-Check VOR dem teuren Analyse-Call ──
+    // Spart Gemini-API-Kosten und schützt vor unbrauchbaren Ergebnissen.
+    // Findet der Check ein Problem, fragt er den Nutzer; bricht er ab, gibt es
+    // gar keinen Backend-Call.
+    final imgQuality = await ImageQualityService.check(imageBytes);
+    if (imgQuality.hasIssues && mounted) {
+      final proceed = await _confirmLowQuality(imgQuality);
+      if (proceed != true) return; // Nutzer bricht ab → kein API-Call
+    }
+
     if (mounted) {
       setState(() => _isAnalyzing = true);
       _startLoadingAnimation();
