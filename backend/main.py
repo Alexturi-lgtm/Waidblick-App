@@ -7,12 +7,13 @@ import os
 import base64
 import json
 import re
+from datetime import datetime, timedelta, timezone
 try:
     from dotenv import load_dotenv
     load_dotenv('/opt/waidblick/.env')
 except ImportError:
     pass
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -73,6 +74,120 @@ def check_and_increment_budget():
                 detail="Tageskontingent der Bildanalyse erreicht. Bitte morgen erneut versuchen.",
             )
         _budget_state["count"] += 1
+
+# ── Entitlement-/Quota-Gate (Kostenbremse) ────────────────────────────────
+# KRITISCH: Das gesamte Gate haengt hinter ENTITLEMENT_GATE_ENABLED (default
+# "false"). Solange false verhaelt sich /analyze EXAKT wie bisher — KEIN Gate,
+# kein Supabase-Call, kein 402. So bricht die Prod nicht, solange RevenueCat /
+# Produkte / Banking noch nicht live sind. Scharfschalten: ENV auf "true".
+import httpx
+
+ENTITLEMENT_GATE_ENABLED = os.environ.get("ENTITLEMENT_GATE_ENABLED", "false").lower() == "true"
+FREE_DAILY_LIMIT = int(os.environ.get("FREE_DAILY_LIMIT", "5"))
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://cflfreajuouofuifahsv.supabase.co")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+REVENUECAT_WEBHOOK_SECRET = os.environ.get("REVENUECAT_WEBHOOK_SECRET", "")
+
+# In-Memory Free-Tageszaehler pro user_id (server-autoritativ, fail-open-Backup).
+# Quelle der Wahrheit fuer Premium ist Supabase profiles; der Free-Zaehler wird
+# zusaetzlich hier pro Tag gehalten, damit das Limit auch ohne profiles-RPC greift.
+_free_lock = threading.Lock()
+_free_state = {"date": None, "counts": {}}
+
+
+def _supabase_service_headers():
+    return {
+        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+        "apikey": SUPABASE_SERVICE_KEY,
+        "Content-Type": "application/json",
+    }
+
+
+def _resolve_user_id(authorization: str):
+    """Validiert den Supabase-JWT (Authorization: Bearer ...) und gibt user_id.
+    Pattern identisch zur redeem-voucher-Logik des kanonischen Backends."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Nicht angemeldet (kein Token).")
+    jwt_token = authorization.replace("Bearer ", "", 1)
+    auth_headers = {"Authorization": f"Bearer {jwt_token}", "apikey": SUPABASE_SERVICE_KEY}
+    try:
+        resp = httpx.get(f"{SUPABASE_URL}/auth/v1/user", headers=auth_headers, timeout=10)
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=503, detail=f"Auth-Server nicht erreichbar: {e}")
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Ungueltiges Token.")
+    user_id = resp.json().get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User-ID nicht gefunden.")
+    return user_id
+
+
+def _is_premium(user_id: str) -> bool:
+    """Liest subscription_status/_expires aus Supabase profiles. premium/lifetime
+    mit gueltiger (oder fehlender) Ablaufzeit => True. Fehler => fail-closed (False),
+    User faellt dann auf das Free-Limit zurueck (blockiert nie komplett)."""
+    if not SUPABASE_SERVICE_KEY:
+        return False
+    try:
+        resp = httpx.get(
+            f"{SUPABASE_URL}/rest/v1/profiles?id=eq.{user_id}"
+            "&select=subscription_status,subscription_expires",
+            headers=_supabase_service_headers(),
+            timeout=10,
+        )
+        rows = resp.json()
+    except Exception:
+        return False
+    if not isinstance(rows, list) or not rows:
+        return False
+    profile = rows[0]
+    status = (profile.get("subscription_status") or "free").lower()
+    if status not in ("premium", "lifetime", "beta"):
+        return False
+    expires = profile.get("subscription_expires")
+    if not expires:
+        return True  # lifetime / kein Ablauf
+    try:
+        exp = datetime.fromisoformat(expires.replace("Z", "+00:00"))
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        return exp > datetime.now(timezone.utc)
+    except Exception:
+        return True  # Parsefehler nicht gegen den User auslegen
+
+
+def _check_free_quota(user_id: str):
+    """Server-autoritativer Free-Tageszaehler. Hebt HTTP 402 bei Ueberschreitung."""
+    with _free_lock:
+        today = _date.today().isoformat()
+        if _free_state["date"] != today:
+            _free_state["date"] = today
+            _free_state["counts"] = {}
+        used = _free_state["counts"].get(user_id, 0)
+        if used >= FREE_DAILY_LIMIT:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "error": "quota_exceeded",
+                    "message": (
+                        f"Kostenloses Tageslimit von {FREE_DAILY_LIMIT} Analysen erreicht. "
+                        "Mit Premium unbegrenzt analysieren."
+                    ),
+                    "limit": FREE_DAILY_LIMIT,
+                    "used": used,
+                },
+            )
+        _free_state["counts"][user_id] = used + 1
+
+
+def enforce_entitlement(authorization: str):
+    """Kostenbremse VOR dem Vision-Call. No-op wenn ENTITLEMENT_GATE_ENABLED=false."""
+    if not ENTITLEMENT_GATE_ENABLED:
+        return
+    user_id = _resolve_user_id(authorization)
+    if _is_premium(user_id):
+        return
+    _check_free_quota(user_id)
 
 SYSTEM_PROMPT = """Du bist WAIDBLICK, KI-Jagdberater. Antworte NUR mit JSON.
 
@@ -701,9 +816,14 @@ async def analyze_photo(
     wildart_hint: str = Form(default="auto"),  # "gams", "rehwild", "auto"
     region: str = Form(default="steiermark"),
     training_consent: str = Form(default="false"),  # "true" = Nutzer hat Opt-in gegeben
+    authorization: str = Header(default=None),  # Supabase JWT (nur fuer Entitlement-Gate genutzt)
 ):
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not set")
+
+    # Entitlement-/Quota-Gate (Kostenbremse) VOR dem teuren Vision-Call.
+    # No-op solange ENTITLEMENT_GATE_ENABLED != "true" → Prod-Verhalten unveraendert.
+    enforce_entitlement(authorization)
 
     # Globales Tages-Budget prüfen (Kostenschutz) BEVOR teurer Vision-Call läuft
     check_and_increment_budget()
@@ -1035,6 +1155,84 @@ async def submit_feedback(
     with open(os.path.join(fb_dir, f"{sample_id}.json"), "w") as f:
         _json.dump(record, f, indent=2, ensure_ascii=False)
     return {"status": "ok", "sample_id": sample_id}
+
+
+@app.post("/revenuecat-webhook")
+async def revenuecat_webhook(
+    request: Request,
+    authorization: str = Header(default=None),
+):
+    """Empfaengt RevenueCat-Webhook-Events und cached den Abo-Status in Supabase
+    profiles (subscription_status / subscription_expires). Idempotent: schreibt
+    nur den abgeleiteten Zielzustand pro app_user_id (keine Inkremente).
+
+    Auth: RevenueCat sendet den im Dashboard konfigurierten Authorization-Header;
+    er muss exakt REVENUECAT_WEBHOOK_SECRET entsprechen.
+
+    Gerüst — bewusst defensiv: unbekannte Event-Typen werden quittiert (200),
+    ohne profiles zu veraendern, damit RevenueCat nicht endlos retryt.
+    """
+    # 1. Secret pruefen
+    if not REVENUECAT_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="Webhook nicht konfiguriert.")
+    if authorization != REVENUECAT_WEBHOOK_SECRET:
+        raise HTTPException(status_code=401, detail="Ungueltiges Webhook-Secret.")
+    if not SUPABASE_SERVICE_KEY:
+        raise HTTPException(status_code=503, detail="Supabase nicht konfiguriert.")
+
+    # 2. Payload lesen
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Kein gueltiges JSON.")
+    event = body.get("event", body) or {}
+    app_user_id = event.get("app_user_id")
+    event_type = (event.get("type") or "").upper()
+    if not app_user_id:
+        raise HTTPException(status_code=400, detail="app_user_id fehlt.")
+
+    # 3. Zielzustand aus Event-Typ ableiten (idempotent)
+    now = datetime.now(timezone.utc)
+    expiration_ms = event.get("expiration_at_ms")
+    expires_iso = None
+    if expiration_ms:
+        try:
+            expires_iso = datetime.fromtimestamp(int(expiration_ms) / 1000, tz=timezone.utc).isoformat()
+        except Exception:
+            expires_iso = None
+
+    ACTIVE = {"INITIAL_PURCHASE", "RENEWAL", "UNCANCELLATION", "PRODUCT_CHANGE", "NON_RENEWING_PURCHASE"}
+    EXPIRE = {"EXPIRATION", "SUBSCRIPTION_PAUSED"}
+
+    if event_type in ACTIVE:
+        patch = {"subscription_status": "premium", "subscription_expires": expires_iso}
+    elif event_type in EXPIRE:
+        patch = {"subscription_status": "free", "subscription_expires": None}
+    elif event_type == "CANCELLATION":
+        # Cancellation != sofortiger Entzug — bleibt premium bis Ablauf.
+        patch = {"subscription_status": "premium", "subscription_expires": expires_iso} if expires_iso else None
+    else:
+        # Unbekannter/irrelevanter Event-Typ → quittieren ohne Aenderung.
+        return {"status": "ignored", "type": event_type}
+
+    if patch is None:
+        return {"status": "noop", "type": event_type}
+    patch["updated_at"] = now.isoformat()
+
+    # 4. Supabase profiles patchen (Service-Key)
+    try:
+        resp = httpx.patch(
+            f"{SUPABASE_URL}/rest/v1/profiles?id=eq.{app_user_id}",
+            headers=_supabase_service_headers(),
+            json=patch,
+            timeout=10,
+        )
+        if resp.status_code not in (200, 204):
+            raise HTTPException(status_code=502, detail=f"Profil-Update fehlgeschlagen ({resp.status_code}).")
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=503, detail=f"Supabase nicht erreichbar: {e}")
+
+    return {"status": "ok", "type": event_type, "subscription_status": patch["subscription_status"]}
 
 
 # Flutter Web App NACH allen API-Routen mounten (sonst werden API-Routen überschrieben)
