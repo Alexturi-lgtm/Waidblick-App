@@ -186,6 +186,22 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     });
   }
 
+  /// Neues Tier ansprechen: setzt den kompletten Analyse-Kontext zurück
+  /// (Fotos, gesammelte Schätzung, Qualitäts-Daten) und startet frisch im
+  /// Upload-Ausgangszustand. Gleiche Logik wie _resetSession, aber positiv
+  /// gerahmt mit kurzer Bestätigung für den Nutzer.
+  void _startNewAnimal() {
+    _resetSession();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bereit für ein neues Tier'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   /// Mehrere Fotos aus der Galerie auswählen
   Future<void> _pickMultiplePhotos() async {
     final List<XFile> pickedList = await _picker.pickMultiImage(
@@ -1216,7 +1232,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               foregroundColor: Colors.black,
               icon: const Icon(Icons.add_a_photo),
               label: const Text(
-                'WEITERES FOTO',
+                'Weiteres Foto (gleiches Tier)',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
             )
@@ -2371,13 +2387,28 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           ],
 
           // Aktions-Buttons
+          // 1) Weiteres Foto vom SELBEN Tier → verfeinert die Ansprache
           ElevatedButton.icon(
             onPressed: _showPickerDialog,
             icon: const Icon(Icons.add_a_photo),
-            label: const Text('WEITERES FOTO'),
+            label: const Text('Weiteres Foto (gleiches Tier)'),
             style: ElevatedButton.styleFrom(
               backgroundColor: WaidblickColors.primary,
               foregroundColor: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 8),
+          // 2) Neues Tier → Analyse-Kontext zurücksetzen, frisch starten
+          OutlinedButton.icon(
+            onPressed: _startNewAnimal,
+            icon: const Icon(Icons.restart_alt,
+                color: WaidblickColors.primary),
+            label: const Text(
+              'Neues Tier ansprechen',
+              style: TextStyle(color: WaidblickColors.primary),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: WaidblickColors.primary),
             ),
           ),
           const SizedBox(height: 8),
