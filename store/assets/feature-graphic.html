@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1024px; height: 500px; overflow: hidden; }
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    width: 1024px; height: 500px;
+    position: relative;
+    /* Deep loden / forest gradient */
+    background:
+      radial-gradient(ellipse 120% 100% at 78% 50%, rgba(60,52,28,0.55) 0%, rgba(0,0,0,0) 60%),
+      radial-gradient(ellipse 90% 120% at 12% 10%, #2e3a26 0%, rgba(46,58,38,0) 55%),
+      linear-gradient(135deg, #11140d 0%, #1c241596 35%, #0c0f08 100%);
+  }
+  /* subtle vignette */
+  .vignette {
+    position: absolute; inset: 0;
+    box-shadow: inset 0 0 180px 40px rgba(0,0,0,0.7);
+    pointer-events: none;
+  }
+  /* faint topographic / texture lines */
+  .texture {
+    position: absolute; inset: 0; opacity: 0.06;
+    background-image: repeating-linear-gradient(115deg, #c9a44a 0 1px, transparent 1px 46px);
+  }
+  .wrap {
+    position: absolute; inset: 0;
+    display: flex; align-items: center;
+    padding: 0 70px;
+  }
+  .text { flex: 1; }
+  .kicker {
+    font-size: 22px; letter-spacing: 6px; text-transform: uppercase;
+    color: #b9c2a3; font-family: 'Trebuchet MS', sans-serif; font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .title {
+    font-size: 118px; line-height: 0.95; font-weight: 700;
+    background: linear-gradient(180deg, #f4e7b5 0%, #e6c463 45%, #b8892f 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 2px 30px rgba(214,176,74,0.25);
+    letter-spacing: 1px;
+  }
+  .rule {
+    width: 360px; height: 3px; margin: 22px 0 20px;
+    background: linear-gradient(90deg, #d6b04a 0%, rgba(214,176,74,0) 100%);
+  }
+  .subline {
+    font-size: 30px; line-height: 1.35; color: #e8ead9;
+    font-family: 'Trebuchet MS', sans-serif; font-weight: 400;
+    max-width: 560px;
+  }
+  .subline b { color: #e6c463; font-weight: 600; }
+  .iconbox {
+    width: 330px; height: 330px; flex: 0 0 330px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .iconbox::before {
+    content: ""; position: absolute; width: 300px; height: 300px;
+    border-radius: 50%;
+    box-shadow: 0 0 80px 10px rgba(214,176,74,0.30);
+  }
+  .iconbox img {
+    width: 300px; height: 300px; border-radius: 50%;
+    border: 2px solid rgba(214,176,74,0.45);
+    position: relative;
+  }
+</style>
+</head>
+<body>
+  <div class="texture"></div>
+  <div class="wrap">
+    <div class="text">
+      <div class="kicker">Wildansprache per Foto</div>
+      <div class="title">Gamssinn</div>
+      <div class="rule"></div>
+      <div class="subline">Wildansprache per Foto &ndash; f&uuml;r <b>Gams</b>, <b>Reh</b> &amp; <b>Rotwild</b></div>
+    </div>
+    <div class="iconbox">
+      <img src="play-icon-512.png" alt="Gamssinn">
+    </div>
+  </div>
+  <div class="vignette"></div>
+</body>
+</html>
