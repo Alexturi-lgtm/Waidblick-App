@@ -1,0 +1,88 @@
+name: Android Release (AAB)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.27.4"
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Dart Analyze (Fehler frühzeitig erkennen)
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Setup Signing (Keystore + key.properties)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+
+          # Keystore aus Base64-Secret rekonstruieren
+          KEYSTORE_PATH="$HOME/gamssinn-upload.keystore"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+
+          # Sanity-Check: Keystore lesbar?
+          if [ ! -s "$KEYSTORE_PATH" ]; then
+            echo "::error::Keystore ist leer - ANDROID_KEYSTORE_BASE64 prüfen"
+            exit 1
+          fi
+
+          # key.properties passend zum Signing-Wiring in android/app/build.gradle.kts schreiben.
+          # storePassword und keyPassword sind beim Upload-Keystore identisch (ANDROID_KEYSTORE_PASSWORD).
+          cat > android/key.properties <<EOF
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=$KEYSTORE_PATH
+          EOF
+
+          echo "key.properties geschrieben (Passwörter maskiert):"
+          sed 's/=.*/=***/' android/key.properties
+
+      - name: Build signed AAB
+        run: |
+          flutter build appbundle --release \
+            --build-number=$GITHUB_RUN_NUMBER
+
+      - name: Verify AAB exists
+        run: |
+          AAB_PATH=$(find build/app/outputs/bundle -name "*.aab" | head -1)
+          if [ -z "$AAB_PATH" ]; then
+            echo "::error::Kein AAB gefunden"
+            exit 1
+          fi
+          echo "AAB gebaut: $AAB_PATH"
+          ls -lh "$AAB_PATH"
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gamssinn-release-aab
+          path: build/app/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      # Hinweis: Direkter Play-Store-Upload via Service-Account (r0adkll/upload-google-play
+      # oder fastlane supply) folgt in einem späteren Schritt. Aktuell wird nur das
+      # signierte AAB als Build-Artefakt erzeugt.
