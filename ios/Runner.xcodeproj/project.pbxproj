@@ -579,7 +579,7 @@
 				VERSIONING_SYSTEM = "apple-generic";
 				CODE_SIGN_STYLE = Manual;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
-				PROVISIONING_PROFILE_SPECIFIER = "Waidblick AppStore";
+				PROVISIONING_PROFILE_SPECIFIER = "Gamssinn AppStore";
 			};
 			name = Release;
 		};
