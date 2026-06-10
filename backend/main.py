@@ -189,6 +189,160 @@ def enforce_entitlement(authorization: str):
         return
     _check_free_quota(user_id)
 
+
+# ── Kosten-/Missbrauchs-Riegel (Rate-Limit-Gate) ───────────────────────────
+# KRITISCH: Komplett hinter Master-Schalter RATE_LIMIT_ENABLED (default
+# "false"). Solange false => enforce_rate_limits() ist ein No-op und /analyze
+# verhaelt sich EXAKT wie heute. Unabhaengig vom Entitlement-Gate oben; beide
+# koennen getrennt scharfgeschaltet werden. Scharfschalten: ENV auf "true".
+RATE_LIMIT_ENABLED = os.environ.get("RATE_LIMIT_ENABLED", "false").lower() == "true"
+MAX_REQUESTS_PER_MINUTE = int(os.environ.get("MAX_REQUESTS_PER_MINUTE", "6"))
+MAX_DAILY_PER_USER = int(os.environ.get("MAX_DAILY_PER_USER", "50"))
+# Tier-Quota (greift nur, wenn Entitlement via JWT/Supabase bekannt ist):
+RL_FREE_DAILY_LIMIT = int(os.environ.get("FREE_DAILY_LIMIT", "3"))
+PREMIUM_MONTHLY_LIMIT = int(os.environ.get("PREMIUM_MONTHLY_LIMIT", "300"))
+# Globaler Tages-Circuit-Breaker (0 = aus):
+GLOBAL_DAILY_ANALYSIS_CAP = int(os.environ.get("GLOBAL_DAILY_ANALYSIS_CAP", "0"))
+# Auth-Pflicht fuer /analyze (default false => Gast-Modus bleibt erhalten):
+REQUIRE_AUTH_FOR_ANALYSIS = os.environ.get("REQUIRE_AUTH_FOR_ANALYSIS", "false").lower() == "true"
+
+# In-Memory-Zaehler (eine Hetzner-Instanz). Schluessel: user_id wenn bekannt,
+# sonst "ip:<addr>". Burst- + Tages-Caps mit UTC-Reset. Monats-Premium-Limit
+# ist hier best-effort (In-Memory, Reset bei Prozess-Neustart) — durable
+# Storage waere Follow-up (siehe Bericht).
+_rl_lock = threading.Lock()
+_rl_minute = {}   # key -> [fenster_start_epoch_minute, count]
+_rl_daily = {"date": None, "counts": {}}      # key -> count (UTC-Tag)
+_rl_monthly = {"month": None, "counts": {}}   # key -> count (UTC-Monat)
+_rl_global = {"date": None, "count": 0}       # globaler Tageszaehler (UTC)
+
+
+def _resolve_user_id_optional(authorization: str):
+    """Gibt (user_id, is_authed). Bei gueltigem JWT die user_id; sonst (None,
+    False) OHNE Exception — damit der Gast-Modus erhalten bleibt. Erzwingt Auth
+    nur, wenn REQUIRE_AUTH_FOR_ANALYSIS=true gesetzt ist."""
+    if authorization and authorization.startswith("Bearer ") and SUPABASE_SERVICE_KEY:
+        try:
+            uid = _resolve_user_id(authorization)
+            return uid, True
+        except HTTPException:
+            pass
+    if REQUIRE_AUTH_FOR_ANALYSIS:
+        raise HTTPException(status_code=401, detail="Anmeldung erforderlich.")
+    return None, False
+
+
+def enforce_rate_limits(request: Request, authorization: str):
+    """Kosten-/Missbrauchs-Riegel VOR dem Vision-Call.
+    No-op wenn RATE_LIMIT_ENABLED=false (Prod-Verhalten unveraendert)."""
+    if not RATE_LIMIT_ENABLED:
+        return
+
+    user_id, is_authed = _resolve_user_id_optional(authorization)
+    # Schluessel: user_id wenn bekannt, sonst IP (Anti-Crawler im Gast-Modus).
+    try:
+        ip = get_remote_address(request)
+    except Exception:
+        ip = "unknown"
+    key = user_id if user_id else f"ip:{ip}"
+
+    now = datetime.now(timezone.utc)
+    today = now.date().isoformat()
+    month = now.strftime("%Y-%m")
+    minute_bucket = int(now.timestamp() // 60)
+
+    with _rl_lock:
+        # 1) Globaler Tages-Circuit-Breaker (vor allem anderen).
+        if GLOBAL_DAILY_ANALYSIS_CAP > 0:
+            if _rl_global["date"] != today:
+                _rl_global["date"] = today
+                _rl_global["count"] = 0
+            if _rl_global["count"] >= GLOBAL_DAILY_ANALYSIS_CAP:
+                print(
+                    f"[ALERT] GLOBAL_DAILY_ANALYSIS_CAP ({GLOBAL_DAILY_ANALYSIS_CAP}) "
+                    f"erreicht am {today} — /analyze global gedrosselt (503).",
+                    flush=True,
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail="Dienst momentan stark ausgelastet. Bitte spaeter erneut versuchen.",
+                )
+
+        # 2) Burst-Limit pro Nutzer (Minuten-Fenster).
+        win = _rl_minute.get(key)
+        if not win or win[0] != minute_bucket:
+            win = [minute_bucket, 0]
+        if win[1] >= MAX_REQUESTS_PER_MINUTE:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "rate_limited",
+                    "message": "Zu viele Anfragen. Bitte kurz warten und erneut versuchen.",
+                    "limit_per_minute": MAX_REQUESTS_PER_MINUTE,
+                },
+            )
+
+        # 3) Harte Tages-Obergrenze pro Nutzer (tier-unabhaengig, Anti-Crawler).
+        if _rl_daily["date"] != today:
+            _rl_daily["date"] = today
+            _rl_daily["counts"] = {}
+        daily_used = _rl_daily["counts"].get(key, 0)
+        if daily_used >= MAX_DAILY_PER_USER:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "daily_cap_exceeded",
+                    "message": "Tageslimit erreicht. Bitte morgen erneut versuchen.",
+                    "limit_per_day": MAX_DAILY_PER_USER,
+                },
+            )
+
+        # 4) Tier-Quota — nur wenn Entitlement bekannt (eingeloggter Nutzer).
+        if is_authed and user_id:
+            if _is_premium(user_id):
+                if _rl_monthly["month"] != month:
+                    _rl_monthly["month"] = month
+                    _rl_monthly["counts"] = {}
+                m_used = _rl_monthly["counts"].get(user_id, 0)
+                if m_used >= PREMIUM_MONTHLY_LIMIT:
+                    raise HTTPException(
+                        status_code=402,
+                        detail={
+                            "error": "monthly_quota_exceeded",
+                            "message": (
+                                f"Premium-Monatslimit von {PREMIUM_MONTHLY_LIMIT} "
+                                "Analysen erreicht."
+                            ),
+                            "limit": PREMIUM_MONTHLY_LIMIT,
+                            "used": m_used,
+                        },
+                    )
+                _rl_monthly["counts"][user_id] = m_used + 1
+            else:
+                free_used = _rl_daily["counts"].get(f"free:{user_id}", 0)
+                if free_used >= RL_FREE_DAILY_LIMIT:
+                    raise HTTPException(
+                        status_code=402,
+                        detail={
+                            "error": "free_quota_exceeded",
+                            "message": (
+                                f"Kostenloses Tageslimit von {RL_FREE_DAILY_LIMIT} "
+                                "Analysen erreicht. Mit Premium unbegrenzt analysieren."
+                            ),
+                            "limit": RL_FREE_DAILY_LIMIT,
+                            "used": free_used,
+                        },
+                    )
+                _rl_daily["counts"][f"free:{user_id}"] = free_used + 1
+
+        # Alle Checks bestanden → Zaehler hochsetzen.
+        win[1] += 1
+        _rl_minute[key] = win
+        _rl_daily["counts"][key] = daily_used + 1
+        if GLOBAL_DAILY_ANALYSIS_CAP > 0:
+            _rl_global["count"] += 1
+
+
 SYSTEM_PROMPT = """Du bist WAIDBLICK, KI-Jagdberater. Antworte NUR mit JSON.
 
 MEHRERE TIERE IM BILD: Falls du mehrere Tiere siehst → analysiere IMMER NUR DAS ÄLTESTE/AUFFÄLLIGSTE Tier! Ignoriere Jungtiere und Kitze wenn ein ausgewachsenes Tier im Bild ist. Analysiere niemals einen Durchschnitt!
@@ -824,6 +978,10 @@ async def analyze_photo(
     # Entitlement-/Quota-Gate (Kostenbremse) VOR dem teuren Vision-Call.
     # No-op solange ENTITLEMENT_GATE_ENABLED != "true" → Prod-Verhalten unveraendert.
     enforce_entitlement(authorization)
+
+    # Kosten-/Missbrauchs-Riegel (Burst/Tages-/Tier-/Global-Limits) VOR dem
+    # Vision-Call. No-op solange RATE_LIMIT_ENABLED != "true" → Prod unveraendert.
+    enforce_rate_limits(request, authorization)
 
     # Globales Tages-Budget prüfen (Kostenschutz) BEVOR teurer Vision-Call läuft
     check_and_increment_budget()
