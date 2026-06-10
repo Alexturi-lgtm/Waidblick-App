@@ -6,6 +6,18 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import '../models/age_estimate.dart';
 
+/// Wird geworfen, wenn das Backend ein Limit meldet (HTTP 429 = zu viele
+/// Anfragen / Tageslimit, HTTP 402 = Kontingent/Quota erreicht). Traegt eine
+/// fertige, nutzerfreundliche deutsche Meldung. Wird im UI separat behandelt
+/// (klare Meldung statt irrefuehrender Mock-Schaetzung).
+class RateLimitException implements Exception {
+  final int statusCode;
+  final String userMessage;
+  RateLimitException(this.statusCode, this.userMessage);
+  @override
+  String toString() => userMessage;
+}
+
 class VisionApiService {
   // Backend URL — Hetzner Production Server
   static String backendUrl = 'https://178.104.159.28';
@@ -42,12 +54,22 @@ class VisionApiService {
           await ioClient.send(request).timeout(const Duration(seconds: 90));
       final body = await response.stream.bytesToString();
 
+      // Limit-/Quota-Status separat behandeln (freundliche Meldung statt Mock).
+      if (response.statusCode == 429 || response.statusCode == 402) {
+        throw RateLimitException(
+          response.statusCode,
+          _rateLimitMessage(response.statusCode, body),
+        );
+      }
+
       if (response.statusCode != 200) {
         throw Exception('API Fehler ${response.statusCode}: $body');
       }
 
       final json = jsonDecode(body) as Map<String, dynamic>;
       return _parseApiResponse(json, photoCount, previousEstimate);
+    } on RateLimitException {
+      rethrow; // nicht in Mock-Fallback umwandeln
     } catch (e) {
       // Fallback: Mock wenn API nicht erreichbar — Fehlertext sichtbar machen
       final errorText = e.toString();
@@ -75,6 +97,25 @@ class VisionApiService {
         geschlechtSicherheit: mock.geschlechtSicherheit,
       );
     }
+  }
+
+  /// Baut eine nutzerfreundliche dt. Meldung fuer Limit-Antworten. Nutzt die
+  /// Backend-Meldung (detail.message) falls vorhanden, sonst Standardtext.
+  static String _rateLimitMessage(int statusCode, String body) {
+    try {
+      final decoded = jsonDecode(body);
+      final detail = decoded is Map ? decoded['detail'] : null;
+      if (detail is Map && detail['message'] is String) {
+        return detail['message'] as String;
+      }
+      if (detail is String && detail.isNotEmpty) return detail;
+    } catch (_) {
+      // Body kein JSON — Standardtext nutzen.
+    }
+    if (statusCode == 429) {
+      return 'Zu viele Anfragen. Bitte einen Moment warten und erneut versuchen.';
+    }
+    return 'Limit erreicht. Mit Premium kannst du mehr analysieren.';
   }
 
   static AgeEstimate _parseApiResponse(

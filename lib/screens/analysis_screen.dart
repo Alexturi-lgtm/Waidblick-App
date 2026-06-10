@@ -548,6 +548,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         // Freemium-Counter + Supabase-Counter erhöhen
         await FreemiumService.incrementAnalyseCount();
         await _incrementAndCheckQuota();
+      } on RateLimitException catch (e) {
+        // Limit/Quota erreicht (429/402): klare Meldung, KEINE Mock-Schaetzung,
+        // KEIN Counter-Increment. Foto wird nicht als Analyse gewertet.
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.userMessage),
+              backgroundColor: Colors.orange.shade800,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
       } catch (e) {
         // Echter API-Fehler: Mock als Fallback + Fehler-Flag setzen
         if (mounted) setState(() => _isApiError = true);
