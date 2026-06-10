@@ -46,7 +46,7 @@ class _ImpressumScreenState extends State<ImpressumScreen> {
           const SizedBox(height: 20),
           _ImpressumBlock(
             title: 'Anbieter',
-            content: 'Turok GmbH\nAlexander Turi\nWiener Straße 7\n82049 Pullach',
+            content: 'Alexander Turi\nWiener Straße 7\n82049 Pullach',
           ),
           const SizedBox(height: 16),
           _ImpressumBlock(

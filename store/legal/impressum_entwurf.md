@@ -8,7 +8,8 @@ Angaben gemäß § 5 Digitale-Dienste-Gesetz (DDG, ehemals § 5 TMG).
 ## Anbieter
 
 **Alexander Turi** (Privatperson)
-[[ALEX EINTRAGEN: ladungsfähige Anschrift – Straße, Hausnummer, PLZ, Ort. Postfach genügt nicht. Pflichtangabe nach § 5 DDG.]]
+Wiener Straße 7
+82049 Pullach
 Deutschland
 
 > Hinweis: Anbieter der App ist Alexander Turi als **Privatperson**, NICHT die Turok GmbH (reine Holding, darf nicht App-Anbieter sein). Daher entfallen Handelsregister- und USt-IdNr.-Angaben, sofern kein Gewerbe/keine Selbstständigkeit angemeldet ist. → vor Launch prüfen lassen, ob durch die Abo-Monetarisierung eine Gewerbeanmeldung/Kleinunternehmer-Status nötig wird; dann ggf. Anschrift/USt-Angaben ergänzen.

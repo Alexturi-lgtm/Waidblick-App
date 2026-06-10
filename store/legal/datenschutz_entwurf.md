@@ -10,7 +10,8 @@
 Verantwortlicher im Sinne der Datenschutz-Grundverordnung (DSGVO) ist:
 
 **Alexander Turi** (Privatperson)
-[[ALEX EINTRAGEN: ladungsfähige Anschrift – Straße, Hausnummer, PLZ, Ort]]
+Wiener Straße 7
+82049 Pullach
 Deutschland
 
 E-Mail: waidblick@proton.me

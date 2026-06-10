@@ -632,13 +632,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _TappableRow(
             icon: Icons.privacy_tip_outlined,
             label: 'Datenschutzerklärung',
-            onTap: () => _openUrl('https://waidblick.de/datenschutz'),
+            onTap: () => _openUrl('https://gamssinn.de/datenschutz'),
           ),
           Divider(color: Colors.white.withOpacity(0.08), height: 1),
           _TappableRow(
             icon: Icons.description_outlined,
             label: 'Nutzungsbedingungen',
-            onTap: () => _openUrl('https://waidblick.de/nutzungsbedingungen'),
+            onTap: () => _openUrl('https://gamssinn.de/nutzungsbedingungen'),
           ),
           Divider(color: Colors.white.withOpacity(0.08), height: 1),
           Padding(
