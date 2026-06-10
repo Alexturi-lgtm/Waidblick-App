@@ -1,5 +1,9 @@
+import 'dart:io';
+import 'package:http/io_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'payment_service.dart';
+import 'sightings_service.dart';
+import 'vision_api_service.dart';
 
 class AuthService {
   static SupabaseClient get client => Supabase.instance.client;
@@ -81,6 +85,50 @@ class AuthService {
   static Future<void> signOut() async {
     await PaymentService.logoutUser();
     await client.auth.signOut();
+  }
+
+  /// Konto + alle Nutzerdaten dauerhaft loeschen (Apple/Play Pflicht).
+  ///
+  /// Ablauf:
+  ///  1. Eigene Datenzeilen per RLS loeschen (sightings).
+  ///  2. Backend-Endpoint /delete-account mit dem Supabase-JWT aufrufen —
+  ///     loescht das Auth-Konto serverseitig (Service-Role) und als Fallback
+  ///     erneut die sightings. profiles wird per ON DELETE CASCADE entfernt.
+  ///  3. Lokal ausloggen.
+  /// GamsBuch/Individuen liegen rein lokal (SharedPreferences) und werden vom
+  /// aufrufenden UI zusaetzlich geloescht.
+  static Future<void> deleteAccount() async {
+    final session = client.auth.currentSession;
+    final token = session?.accessToken;
+    if (token == null) {
+      throw Exception('Nicht angemeldet.');
+    }
+
+    // 1. Eigene Datenzeilen via RLS loeschen (best effort — Backend wiederholt es).
+    try {
+      await SightingsService.deleteMySightings();
+    } catch (_) {
+      // Nicht blockieren — der Server loescht per Service-Key erneut.
+    }
+
+    // 2. Auth-Konto serverseitig loeschen (Service-Role noetig).
+    final httpClient = HttpClient()
+      ..badCertificateCallback = (cert, host, port) => true;
+    final ioClient = IOClient(httpClient);
+    try {
+      final resp = await ioClient.post(
+        Uri.parse('${VisionApiService.backendUrl}/delete-account'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (resp.statusCode != 200) {
+        throw Exception('Kontoloeschung fehlgeschlagen (${resp.statusCode}).');
+      }
+    } finally {
+      ioClient.close();
+    }
+
+    // 3. Lokal ausloggen.
+    await signOut();
   }
 
   /// Profil laden

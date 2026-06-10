@@ -227,9 +227,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (step2 != true || !mounted) return;
 
+    // Ladeindikator waehrend der Loeschung
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFFF5A623)),
+      ),
+    );
+
     try {
-      await AuthService.signOut();
+      // 1. Konto + Serverdaten loeschen (Auth-Konto, sightings, profiles via Cascade)
+      await AuthService.deleteAccount();
+
+      // 2. Lokale Daten (GamsBuch/Individuen) entfernen
+      try {
+        await DatabaseService.instance.load();
+        for (final ind in List.of(DatabaseService.instance.individuals)) {
+          await DatabaseService.instance.deleteIndividual(ind.id);
+        }
+      } catch (_) {}
+
       if (mounted) {
+        Navigator.of(context).pop(); // Ladeindikator schließen
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
           (_) => false,
@@ -240,9 +260,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        Navigator.of(context).pop(); // Ladeindikator schließen
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Fehler: $e'),
+            content: Text('Konto konnte nicht gelöscht werden: $e'),
             backgroundColor: Colors.redAccent,
           ),
         );

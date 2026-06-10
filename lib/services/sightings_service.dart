@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth_service.dart';
+import '../config.dart';
 import '../models/age_estimate.dart';
 
 class SightingsService {
@@ -18,6 +19,10 @@ class SightingsService {
     final user = AuthService.currentUser;
     if (user == null) return;
 
+    // Launch-Feature-Flag: Standortweitergabe zwischen Nutzern ist AUS.
+    // Solange kSharingEnabled false ist, wird NIE shared=true gesendet.
+    final bool effectiveShared = kSharingEnabled && shared;
+
     await _db.from('sightings').insert({
       'user_id': user.id,
       'wildart': estimate.wildart,
@@ -34,7 +39,7 @@ class SightingsService {
       'region': region,
       'revier': revier,
       'notes': notes,
-      'shared': shared,
+      'shared': effectiveShared,
     });
   }
 
@@ -49,6 +54,15 @@ class SightingsService {
         .eq('user_id', user.id)
         .order('created_at', ascending: false)
         .limit(limit);
+  }
+
+  /// Eigene Sichtungen loeschen (RLS: nur eigene Rows).
+  /// Wird bei der Kontoloeschung genutzt; Backend loescht zusaetzlich
+  /// serverseitig als Fallback per Service-Key.
+  static Future<void> deleteMySightings() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+    await _db.from('sightings').delete().eq('user_id', user.id);
   }
 
   /// Community-Sichtungen (shared=true)
