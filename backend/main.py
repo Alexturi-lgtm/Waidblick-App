@@ -1235,6 +1235,62 @@ async def revenuecat_webhook(
     return {"status": "ok", "type": event_type, "subscription_status": patch["subscription_status"]}
 
 
+@app.post("/delete-account")
+@limiter.limit("5/minute")
+async def delete_account(
+    request: Request,
+    authorization: str = Header(default=None),
+):
+    """Loescht das komplette Nutzerkonto (Apple/Play Pflicht fuer Account-Apps).
+
+    ADDITIV — aendert KEINE bestehende Logik. Schritte:
+      1. Supabase-JWT validieren -> user_id (gleiches Pattern wie Entitlement-Gate)
+      2. Nutzerdaten in 'sightings' (eigene Rows) per Service-Key loeschen
+      3. Auth-Konto via Supabase Admin API loeschen
+         -> 'profiles' wird per ON DELETE CASCADE automatisch mit entfernt
+
+    Erfordert SUPABASE_SERVICE_KEY (Service-Role) — nur serverseitig moeglich.
+    """
+    if not SUPABASE_SERVICE_KEY:
+        raise HTTPException(status_code=503, detail="Kontoloeschung nicht konfiguriert (kein Service-Key).")
+
+    # 1. Identitaet aus dem JWT aufloesen (validiert das Token serverseitig)
+    user_id = _resolve_user_id(authorization)
+
+    # 2. Eigene Nutzerdaten loeschen (Service-Key umgeht RLS; auf user_id gefiltert)
+    try:
+        del_sightings = httpx.delete(
+            f"{SUPABASE_URL}/rest/v1/sightings?user_id=eq.{user_id}",
+            headers=_supabase_service_headers(),
+            timeout=15,
+        )
+        # 200/204 = ok; 404 (Tabelle fehlt) tolerieren, damit Kontoloeschung nie blockiert
+        if del_sightings.status_code not in (200, 204, 404):
+            raise HTTPException(
+                status_code=502,
+                detail=f"Loeschen der Sichtungen fehlgeschlagen ({del_sightings.status_code}).",
+            )
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=503, detail=f"Supabase nicht erreichbar: {e}")
+
+    # 3. Auth-Konto loeschen (loescht via Cascade auch das profiles-Row)
+    try:
+        del_user = httpx.delete(
+            f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}",
+            headers=_supabase_service_headers(),
+            timeout=15,
+        )
+        if del_user.status_code not in (200, 204):
+            raise HTTPException(
+                status_code=502,
+                detail=f"Loeschen des Kontos fehlgeschlagen ({del_user.status_code}).",
+            )
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=503, detail=f"Auth-Server nicht erreichbar: {e}")
+
+    return {"status": "deleted", "user_id": user_id}
+
+
 # Flutter Web App NACH allen API-Routen mounten (sonst werden API-Routen überschrieben)
 if os.path.exists(FLUTTER_WEB_DIR):
     app.mount("/", StaticFiles(directory=FLUTTER_WEB_DIR, html=True), name="flutter")
